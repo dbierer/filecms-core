@@ -1,6 +1,7 @@
 <?php
 namespace FileCMSTest\Common\Data\Strategy;
 
+use FileCMS\Common\Data\CsvBase;
 use FileCMS\Common\Data\Strategy\Csv;
 use FileCMSTest\Common\Data\StorageBase;
 class CsvTest extends StorageBase
@@ -11,7 +12,7 @@ class CsvTest extends StorageBase
         Csv::save(self::$tmpFn, $data);
         $tmp  = file_get_contents(self::$tmpFn);
         $expected = $data;
-        $actual   = str_getcsv($tmp);
+        $actual   = str_getcsv($tmp, separator: CsvBase::DEFAULT_DELIM, escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
     }
     public function testFetchReturnsPhpArray()

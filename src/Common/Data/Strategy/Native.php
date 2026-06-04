@@ -73,7 +73,7 @@ class Native implements FormatStrategyInterface
         try {
             $lines = file($fn);
             foreach ($lines as $contents)
-                $data[] = unserialize($contents);
+                $data[] = unserialize(trim($contents));
             if ($erase) unlink($fn);
         } catch (Throwable $t) {
             error_log(__METHOD__ . ':' . $t->getMessage());

@@ -1,7 +1,7 @@
 <?php
 namespace FileCMSTest\Common\Data;
 
-use FileCMS\Common\Data\BigCsv;
+use FileCMS\Common\Data\{BigCsv,CsvBase};
 use FileCMS\Common\Generic\Functions;
 use PHPUnit\Framework\TestCase;
 class BigCsvTest extends TestCase
@@ -24,7 +24,7 @@ class BigCsvTest extends TestCase
 		$this->test_arr = ['test','test','https://unlikelysource.com','test@unlikelysource.com','Barney Rubble','Testy','Tester','LSD','testy@unlikelysource.com','M','0','https://mercurysafedentistry.com/order',$this->date];
         // populate headers
         $lines = file($this->csvFn);
-        $this->headers = str_getcsv($lines[0]);
+        $this->headers = str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE);
         // get rid of test.csv and temp.csv
         if (file_exists($this->csvTestFn)) unlink($this->csvTestFn);
         if (file_exists($this->tmp_fn)) unlink($this->tmp_fn);
@@ -37,7 +37,7 @@ class BigCsvTest extends TestCase
         $csv = new BigCsv($csv_fn, $arr);
         unset($csv);
         $expected = $arr;
-        $actual = str_getcsv(file($csv_fn)[0]);
+        $actual = str_getcsv(file($csv_fn)[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
     }
     public function testConstructCreatesEmptyFileIfNoHeadersGiven()
@@ -123,7 +123,7 @@ class BigCsvTest extends TestCase
         $csv->writeRowToCsv($arr);
         $lines = file($csv_fn);
         $expected = array_values($arr);
-        $actual   = str_getcsv($lines[0]);
+        $actual   = str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
     }
     public function testWriteRowToCsvWritesHeadersIfFileBlank()
@@ -160,7 +160,10 @@ class BigCsvTest extends TestCase
         $csv->writeRowToCsv($arr, $this->headers);
         $lines = file($csv_fn);
         $expected = $arr;
-        $actual   = Functions::array_combine_whatever(str_getcsv($lines[0]), str_getcsv($lines[1]));
+        $actual   = Functions::array_combine_whatever(
+                    str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+                    str_getcsv($lines[1],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE)
+        );
         $this->assertEquals($expected, $actual);
     }
     // deleteRowInCsv(string $search, array $csv_fields = [], bool $case = FALSE, bool $overwrite = TRUE, string $tmp_fn = '', bool $erase_tmp = TRUE) : array
@@ -293,7 +296,10 @@ class BigCsvTest extends TestCase
         $replace = ['web_person_email' => 'pebbles@flintstone.com','web_person_name' => 'Pebbles Flintstone'];
         $csv->updateRowInCsv($search, $replace, $this->headers, FALSE);
         $lines = file($csv_fn);
-        $row   = Functions::array_combine_whatever(str_getcsv($lines[0]), str_getcsv($lines[1]));
+        $row   = Functions::array_combine_whatever(
+                    str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+                    str_getcsv($lines[1],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE)
+        );
         $expected = $replace['web_person_email'];
         $actual   = $row['web_person_email'] ?? 'XXX';
         $this->assertEquals($expected, $actual);
@@ -310,7 +316,10 @@ class BigCsvTest extends TestCase
         $replace = ['web_person_email' => 'pebbles@flintstone.com','web_person_name' => 'Pebbles Flintstone'];
         $csv->updateRowInCsv($search, $replace, $this->headers, FALSE);
         $lines = file($csv_fn);
-        $row   = Functions::array_combine_whatever(str_getcsv($lines[0]), str_getcsv($lines[2]));
+        $row   = Functions::array_combine_whatever(
+                    str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+                    str_getcsv($lines[2],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE)
+        );
         $expected = $arr['add_on_plan'];
         $actual   = $row['add_on_plan'] ?? 'XXX';
         $this->assertEquals($expected, $actual);
@@ -326,7 +335,7 @@ class BigCsvTest extends TestCase
         $replace = ['A','B','C'];
         $csv->updateRowInCsv($search, $replace);
         $expected = $replace;
-        $actual = str_getcsv(file($csv_fn)[1]);
+        $actual = str_getcsv(file($csv_fn)[1],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
 	}
 }

@@ -87,25 +87,31 @@ class Csv extends CsvBase
      *
      * @param array $post       : normally sanitized $_POST
      * @param array $csv_fields : array of CSV headers; leave blank if headers not used
-     * @param string $delim     : default == "\n"
+     * @param string $delim     : default == CsvBase::DEFAULT_DELIM (separator parameter)
      * @return bool             : TRUE if entry made OK
      */
-    public function writeRowToCsv(array $post, array $csv_fields = [], string $delim = "\n") : bool
+    public function writeRowToCsv(array $post, array $csv_fields = [], ?string $delim = NULL) : bool
     {
         $ok = FALSE;
+        $delim ??= static::DEFAULT_DELIM;
         try {
             $obj = new SplFileObject($this->csv_fn, 'a');
             if (empty($csv_fields)) {
                 $data = $post;
             } else {
                 // write headers if filesize is 0
-                if ($this->getSize() === 0) $obj->fputcsv($csv_fields, $delim);
+                if ($this->getSize() === 0) $obj->fputcsv($csv_fields,                                     
+                                                          separator: $delim, 
+                                                          enclosure: static::DEFAULT_ENCLOSURE, 
+                                                          escape: static::DEFAULT_ESCAPE);
                 // align $_POST data to csv fields
                 $data = [];
                 foreach ($csv_fields as $name)
                     $data[$name] = $post[$name] ?? '';
             }
-            $ok = (bool) $obj->fputcsv(array_values($data), $delim);
+            $ok = (bool) $obj->fputcsv(array_values($data), separator: $delim, 
+                                                            enclosure: static::DEFAULT_ENCLOSURE, 
+                                                            escape: static::DEFAULT_ESCAPE);
         } catch (Throwable $t) {
             error_log(__METHOD__ . ':' . get_class($t) . ':' . $t->getMessage() . ':' . $t->getTraceAsString());
         }
@@ -125,14 +131,17 @@ class Csv extends CsvBase
      * @param bool $case      : TRUE: case sensitive; FALSE: [default] case insensitive search
      * @param bool $first_row : TRUE [default]: first row is headers; FALSE: first row is data
      * @param bool $all       : FALSE [default]: only return 1st match; TRUE: return all matches
+     * @param string $delim   : default == CsvBase::DEFAULT_DELIM (separator parameter)
      * @return array
      */
     public function findItemInCSV(string $search,
                                   bool $case = FALSE,
                                   bool $first = TRUE,
-                                  bool $all = FALSE) : array
+                                  bool $all = FALSE,
+                                  ?string $delim = NULL) : array
     {
         // otherwise process as normal
+        $delim ??= static::DEFAULT_DELIM;
         $func  = ($case) ? 'strpos' : 'stripos';
         $found = [];
         $hdr_count = 0;
@@ -141,11 +150,11 @@ class Csv extends CsvBase
         $this->lines   = file($this->csv_fn, FILE_SKIP_EMPTY_LINES);
         foreach($this->lines as $key => $row) {
             if ($first && empty($this->headers)) {
-                $this->headers = str_getcsv($row);
+                $this->headers = str_getcsv($row, $delim, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                 $hdr_count = count($this->headers);
             } else {
                 if ($func($row, $search) !== FALSE) {
-                    $row = str_getcsv($row);
+                    $row = str_getcsv($row, $delim, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                     if ($first && $hdr_count === count($row)) {
                         $temp = array_combine($this->headers, $row);
                     } else {

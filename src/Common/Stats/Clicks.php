@@ -3,8 +3,8 @@ namespace FileCMS\Common\Stats;
 /*
  * Records page clicks
  *
- * @todo: page reports: (1) by month, (2) by day, (3) by time-of-day,
  * @todo: aggregate reports: (1) by IP, (2) by referrer, (3) by path (e.g. /practice/demo_silver)
+ * @todo: add provision for user to alter args to f(get|put)csv() calls re: separator, enclosure, and escape
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -36,6 +36,7 @@ namespace FileCMS\Common\Stats;
 
 use SplFileObject;
 use Throwable;
+use FileCMS\Common\Data\CsvBase;
 class Clicks
 {
     public const HOME = '/home';
@@ -61,7 +62,10 @@ class Clicks
             $refer = $_SERVER['HTTP_REFERER'] ?? 'Unknown';
             $get = (!empty($_GET)) ? json_encode($_GET) : '{}';
             $obj = new SplFileObject($click_fn, 'a');
-            $ok = (bool) $obj->fputcsv([$url, date('Y-m-d'), date('H:i:s'), $ip, $refer,$get,1]);
+            $ok = (bool) $obj->fputcsv([$url, date('Y-m-d'), date('H:i:s'), $ip, $refer,$get,1],
+                                       separator: CsvBase::DEFAULT_DELIM,
+                                       enclosure: CsvBase::DEFAULT_ENCLOSURE,
+                                       escape:    CsvBase::DEFAULT_ESCAPE);
             unset($obj);
         } catch (Throwable $t) {
             error_log(__METHOD__ . ':' . $t->getMessage() . ':' . $t->getTraceAsString());
@@ -84,7 +88,10 @@ class Clicks
         try {
             $obj = new SplFileObject($click_fn, 'r');
             $num = count(self::CLICK_HEADERS);
-            while (!$obj->eof() && $row = $obj->fgetcsv()) {
+            while (!$obj->eof()) {
+                $row = $obj->fgetcsv(separator: CsvBase::DEFAULT_DELIM,
+                                     enclosure: CsvBase::DEFAULT_ENCLOSURE,
+                                     escape:    CsvBase::DEFAULT_ESCAPE);
                 if (empty($row[0])) continue;
                 if (count($row) !== $num) {
                     self::$discrepancies[] = $row;

@@ -34,6 +34,7 @@ namespace FileCMS\Common\Data\Strategy;
  */
 use Throwable;
 use SplFileObject;
+use FileCMS\Common\Data\CsvBase;
 use FileCMS\Common\Data\FormatStrategyInterface;
 class Csv implements FormatStrategyInterface
 {
@@ -51,6 +52,9 @@ class Csv implements FormatStrategyInterface
             $obj = ($append)
                  ? new SplFileObject($fn, 'a')
                  : new SplFileObject($fn, 'w');
+            $obj->setCsvControl(separator: CsvBase::DEFAULT_DELIM, 
+                                enclosure: CsvBase::DEFAULT_ENCLOSURE, 
+                                escape: CsvBase::DEFAULT_ESCAPE);
             if (!is_array($data)) $data = (array) $data;
             $result = $obj->fputcsv($data);
         } catch (Throwable $t) {
@@ -73,6 +77,9 @@ class Csv implements FormatStrategyInterface
         if (!file_exists($fn)) return $data;
         try {
             $obj = new SplFileObject($fn, 'r');
+            $obj->setCsvControl(separator: CsvBase::DEFAULT_DELIM, 
+                                enclosure: CsvBase::DEFAULT_ENCLOSURE, 
+                                escape: CsvBase::DEFAULT_ESCAPE);
             while (!$obj->eof()) {
                 $row = $obj->fgetcsv();
                 if (!empty($row) && $row[0] !== NULL) $data[] = $row;

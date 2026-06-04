@@ -1,7 +1,7 @@
 <?php
 namespace FileCMSTest\Common\Data;
 
-use FileCMS\Common\Data\Csv;
+use FileCMS\Common\Data\{Csv,CsvBase};
 use FileCMS\Common\Generic\Functions;
 use PHPUnit\Framework\TestCase;
 class CsvTest extends TestCase
@@ -18,7 +18,10 @@ class CsvTest extends TestCase
         $this->csv = new Csv($this->csvFn);
         // populate headers
         $lines = file($this->csvFn);
-        $this->headers = str_getcsv($lines[0]);
+        $this->headers = str_getcsv($lines[0], 
+                                    separator: CsvBase::DEFAULT_DELIM, 
+                                    enclosure: CsvBase::DEFAULT_ENCLOSURE, 
+                                    escape: CsvBase::DEFAULT_ESCAPE);
         // get rid of test.csv
         $csv_fn = $this->csvTestFn;
         if (file_exists($csv_fn)) unlink($csv_fn);
@@ -121,7 +124,7 @@ class CsvTest extends TestCase
         $csv->writeRowToCsv($arr);
         $lines = file($csv_fn);
         $expected = array_values($arr);
-        $actual   = str_getcsv($lines[0]);
+        $actual   = str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
     }
     public function testWriteRowToCsvWritesHeadersIfFileBlank()
@@ -148,7 +151,9 @@ class CsvTest extends TestCase
         $csv->writeRowToCsv($arr, $this->headers);
         $lines = file($csv_fn);
         $expected = $arr;
-        $actual   = array_combine(str_getcsv($lines[0]), str_getcsv($lines[1]));
+        $actual   = array_combine(
+            str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+            str_getcsv($lines[1],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE));
         $this->assertEquals($expected, $actual);
     }
     public function testGetSizeReportsZeroAfterNewInstance()
@@ -210,7 +215,8 @@ class CsvTest extends TestCase
         $replace = ['web_person_email' => 'pebbles@flintstone.com','web_person_name' => 'Pebbles Flintstone'];
         $csv->updateRowInCsv($search, $replace, $this->headers, FALSE);
         $lines = file($csv_fn);
-        $row   = array_combine(str_getcsv($lines[0]), str_getcsv($lines[2]));
+        $row   = array_combine(str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+                               str_getcsv($lines[2],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE));
         $expected = 'pebbles@flintstone.com';
         $actual   = $row['web_person_email'] ?? 'XXX';
         $this->assertEquals($expected, $actual);
@@ -227,7 +233,8 @@ class CsvTest extends TestCase
         $replace = ['web_person_email' => 'pebbles@flintstone.com','web_person_name' => 'Pebbles Flintstone'];
         $csv->updateRowInCsv($search, $replace, $this->headers, FALSE);
         $lines = file($csv_fn);
-        $row   = array_combine(str_getcsv($lines[0]), str_getcsv($lines[2]));
+        $row   = array_combine(str_getcsv($lines[0],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE), 
+                               str_getcsv($lines[2],separator: CsvBase::DEFAULT_DELIM,enclosure: CsvBase::DEFAULT_ENCLOSURE,escape: CsvBase::DEFAULT_ESCAPE));
         $expected = 'silver';
         $actual   = $row['add_on_plan'] ?? 'XXX';
         $this->assertEquals($expected, $actual);

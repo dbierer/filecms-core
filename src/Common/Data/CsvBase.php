@@ -37,12 +37,17 @@ class CsvBase
 {
     const ERR_CSV   = 'ERROR: CSV file error';
     const HDR_PREFIX = 'header_%02d';
+    const DEFAULT_EOL = PHP_EOL;
+    const DEFAULT_DELIM = ',';  // $separator
+    const DEFAULT_ESCAPE = '';  // as per recommendation in https://www.php.net/manual/en/splfileobject.fputcsv.php
+    const DEFAULT_ENCLOSURE = '"';
     public $headers = [];
     public $csv_fn  = '';
     public $size    = 0;
     public function getItemsFromCsv($key_field = NULL, bool $first_row = TRUE) : array
     {
         $obj     = new SplFileObject($this->csv_fn, 'r');
+        $obj->setCsvControl(separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
         $select  = [];
         $headers = [];
         $count   = 0;

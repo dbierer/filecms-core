@@ -59,7 +59,7 @@ class BigCsv extends CsvBase
                 $this->size = 0;
             } else {
                 $obj = new SplFileObject($this->csv_fn, 'w');
-                $obj->fputcsv($headers);
+                $obj->fputcsv($headers, separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                 unset($obj);
                 $this->size = strlen(implode(',', $headers));
             }
@@ -70,11 +70,13 @@ class BigCsv extends CsvBase
      *
      * @param array $post       : normally sanitized $_POST
      * @param array $csv_fields : array of CSV headers; leave blank if headers not used
+     * @param string $delim     : default == CsvBase::DEFAULT_DELIM (separator parameter)
      * @return bool             : TRUE if entry made OK
      */
-    public function writeRowToCsv(array $post, array $csv_fields = []) : bool
+    public function writeRowToCsv(array $post, array $csv_fields = [], ?string $delim = NULL) : bool
     {
         $ok = FALSE;
+        $delim ??= static::DEFAULT_DELIM;
         try {
             $obj = new SplFileObject($this->csv_fn, 'a');
             if (empty($csv_fields)) {
@@ -82,7 +84,7 @@ class BigCsv extends CsvBase
             } else {
                 // if size === 0 write out headers
                 if ($this->size === 0) {
-                    $obj->fputcsv($csv_fields);
+                    $obj->fputcsv($csv_fields, separator: $delim, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                     $this->size = strlen(implode(',', $csv_fields));
                 }
                 // align $_POST data to csv fields
@@ -90,7 +92,7 @@ class BigCsv extends CsvBase
                 foreach ($csv_fields as $name)
                     $data[$name] = $post[$name] ?? '';
             }
-            $ok = (bool) $obj->fputcsv(array_values($data));
+            $ok = (bool) $obj->fputcsv(array_values($data), separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
             unset($obj);
         } catch (Throwable $t) {
             error_log(__METHOD__ . ':' . get_class($t) . ':' . $t->getMessage() . ':' . $t->getTraceAsString());
@@ -105,14 +107,17 @@ class BigCsv extends CsvBase
      *
      * @param string $search  : any value that might be in the CSV file
      * @param bool $case      : TRUE: case sensitive; FALSE: [default] case insensitive search
-     * @param bool $first_row : TRUE [default]: first row is headers; FALSE: first row is data
+     * @param bool $first     : TRUE [default]: first row is headers; FALSE: first row is data
+     * @param string $delim   : default == CsvBase::DEFAULT_DELIM (separator parameter)
      * @return array
      */
     public function findItemInCSV(string $search,
                                   bool $case = FALSE,
                                   bool $first = TRUE,
-                                  bool $all = FALSE) : array
+                                  bool $all = FALSE,
+                                  ?string $delim = NULL) : array
     {
+        $delim ??= static::DEFAULT_DELIM;
         $func  = ($case) ? 'strpos' : 'stripos';
         $found = [];
         $hdr_count = 0;
@@ -121,11 +126,11 @@ class BigCsv extends CsvBase
         while (!$obj->eof()) {
             $row = $obj->fgets();
             if ($first && empty($this->headers)) {
-                $this->headers = str_getcsv($row);
+                $this->headers = str_getcsv($row, $delim, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                 $hdr_count = count($this->headers);
             } else {
                 if ($func($row, $search) !== FALSE) {
-                    $found = str_getcsv($row);
+                    $found = str_getcsv($row, $delim, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                     if ($first && $hdr_count === count($found)) {
                         $found = array_combine($this->headers, $found);
                     }
@@ -169,13 +174,13 @@ class BigCsv extends CsvBase
         while (!$obj->eof()) {
             $row = $obj->fgets();
             if ($first && empty($this->headers)) {
-                $this->headers = str_getcsv($row);
+                $this->headers = str_getcsv($row, separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                 $hdr_count = count($this->headers);
                 $tmp->fwrite($row);
             } else {
                 // if nothing is found yet, store found row but don't write it to tmp
                 if ($func($row, $search) !== FALSE && empty($found)) {
-                    $found = str_getcsv($row);
+                    $found = str_getcsv($row, separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
                     if ($first && $hdr_count === count($found))
                         $found = array_combine($this->headers, $found);
                 } else {
@@ -222,6 +227,6 @@ class BigCsv extends CsvBase
 				if (!empty($data[$key])) $row[$key] = $data[$key];
 		}
         // write CSV back out
-        return (bool) (new SplFileObject($this->csv_fn, 'a'))->fputcsv($row);
+        return (bool) (new SplFileObject($this->csv_fn, 'a'))->fputcsv($row, separator: static::DEFAULT_DELIM, enclosure: static::DEFAULT_ENCLOSURE, escape: static::DEFAULT_ESCAPE);
     }
 }

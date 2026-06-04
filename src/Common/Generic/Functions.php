@@ -31,6 +31,7 @@ namespace FileCMS\Common\Generic;
  *
  */
 use ArrayIterator;
+use FileCMSTest\Common\Data\CsvBase;
 class Functions
 {
     const HDR_PREFIX = 'header_%02d';
@@ -44,7 +45,11 @@ class Functions
     public static function array2csv(array $data) : string
     {
         $f = fopen('php://memory', 'w+');
-        fputcsv($f, $data);
+        fputcsv($f, 
+                $data, 
+                separator: CsvBase::DEFAULT_DELIM, 
+                enclosure: CsvBase::DEFAULT_ENCLOSURE,
+                escape: CsvBase::DEFAULT_ESCAPE);
         rewind($f);
         $str = trim(stream_get_contents($f));
         fclose($f);

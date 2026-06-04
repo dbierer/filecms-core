@@ -2,7 +2,7 @@
 namespace FileCMSTest\Common\Data;
 
 use FileCMS\Common\Data\Strategy\{Csv,Json,Native};
-use FileCMS\Common\Data\Storage;
+use FileCMS\Common\Data\{Storage,CsvBase};
 class StorageTest extends StorageBase
 {
     public function testConstructCreatesConfigProperly()
@@ -31,7 +31,7 @@ class StorageTest extends StorageBase
         $this->storage->save($data);
         $tmp  = file_get_contents(self::$tmpFn);
         $expected = $data;
-        $actual   = str_getcsv($tmp);
+        $actual   = str_getcsv($tmp, separator: CsvBase::DEFAULT_DELIM, escape: CsvBase::DEFAULT_ESCAPE);
         $this->assertEquals($expected, $actual);
     }
     public function testFetchReturnsPhpArray()

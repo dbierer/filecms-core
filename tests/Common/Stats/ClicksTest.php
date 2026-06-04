@@ -4,6 +4,7 @@ namespace FileCMSTest\Common\Stats;
 use DateTime;
 use SplFileObject;
 use FileCMS\Common\Stats\Clicks;
+use FileCMS\Common\Data\CsvBase;
 use PHPUnit\Framework\TestCase;
 class ClicksTest extends TestCase
 {
@@ -146,7 +147,7 @@ class ClicksTest extends TestCase
         $url = '/test';
         Clicks::add($url, $this->click_fn);
         $obj = new SplFileObject($this->click_fn, 'a');
-        $ok = (bool) $obj->fputcsv(['/test', date('Y-m-d')]);
+        $ok = (bool) $obj->fputcsv(['/test', date('Y-m-d')], CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE);
         unset($obj);
         Clicks::add($url, $this->click_fn);
         $expected = 2;
@@ -159,7 +160,7 @@ class ClicksTest extends TestCase
         $url = '/test';
         Clicks::add($url, $this->click_fn);
         $obj = new SplFileObject($this->click_fn, 'a');
-        $ok = (bool) $obj->fputcsv(['/test', date('Y-m-d')]);
+        $ok = (bool) $obj->fputcsv(['/test', date('Y-m-d')], CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE);
         unset($obj);
         Clicks::add($url, $this->click_fn);
         $callback = function ($val) { return $val[0]; };
@@ -192,14 +193,14 @@ class ClicksTest extends TestCase
         $obj  = new SplFileObject($this->click_fn, 'r');
         $tmp  = 0;
         $test = [];
-        while ($row = $obj->fgetcsv()) {
+        while ($row = $obj->fgetcsv(CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE)) {
             $row[1] = $day[$tmp++ & 1];
             $test[] = $row;
         }
         // write new dates back
         $obj = new SplFileObject($this->click_fn, 'w');
         foreach ($test as $row)
-            $obj->fputcsv($row);
+            $obj->fputcsv($row, CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE);
         unset($obj);
         // # clicks by day 0 s/be 2
         $key      = $url . '-' . $day[0];
@@ -225,14 +226,14 @@ class ClicksTest extends TestCase
         $obj  = new SplFileObject($this->click_fn, 'r');
         $tmp  = 0;
         $test = [];
-        while ($row = $obj->fgetcsv()) {
+        while ($row = $obj->fgetcsv(CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE)) {
             $row[1] = $day[$tmp++ & 1];
             $test[] = $row;
         }
         // write new dates back
         $obj = new SplFileObject($this->click_fn, 'w');
         foreach ($test as $row)
-            $obj->fputcsv($row);
+            $obj->fputcsv($row, CsvBase::DEFAULT_DELIM, CsvBase::DEFAULT_ENCLOSURE, CsvBase::DEFAULT_ESCAPE);
         unset($obj);
         // # clicks by this month s/be 3
         $clicks   = Clicks::get_by_page_by_month($this->click_fn);

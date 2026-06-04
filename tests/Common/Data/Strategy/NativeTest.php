@@ -10,7 +10,7 @@ class NativeTest extends StorageBase
         $data = ['A' => 111, 'B' => 222, 'C' => 333];
         Native::save(self::$tmpFn, $data);
         $expected = $data;
-        $actual   = unserialize(file_get_contents(self::$tmpFn));
+        $actual   = unserialize(trim(file_get_contents(self::$tmpFn)));
         $this->assertEquals($expected, $actual);
     }
     public function testFetchReturnsPhpArray()
