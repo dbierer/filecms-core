@@ -1,6 +1,7 @@
 <?php
 namespace FileCMSTest\Common\Generic;
 
+use FileCMS\Common\Data\CsvBase;
 use FileCMS\Common\Generic\Functions;
 use PHPUnit\Framework\TestCase;
 class FunctionsTest extends TestCase

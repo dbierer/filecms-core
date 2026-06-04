@@ -42,6 +42,7 @@ use Throwable;
 use Exception;
 use ArrayIterator;
 use SplFileObject;
+use FileCMS\Common\Data\CsvBase;
 use FileCMS\Common\Contact\Email;
 use FileCMS\Common\Generic\Messages;
 use FileCMS\Common\Generic\Functions;

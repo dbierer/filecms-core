@@ -206,7 +206,7 @@ class Browse
      * @param string $path  : starting path (if other than HTML_DIR
      * @return ArrayIterator $pages : [URL key => full path, URL key => full path]
      */
-    public function getListOfImages(string $path = NULL)
+    public function getListOfImages(?string $path = NULL)
     {
         $path = $path ?? $this->img_dir;
         if (empty($this->images)) {
