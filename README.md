@@ -13,6 +13,14 @@ Simple PHP framework that builds HTML files from HTML widgets.
 License: Apache v2
 
 ## Initial Installation
+### Quick Install (Composer Script)
+If you already have a Composer project that requires `unlikelysource/filecms-core`, you can scaffold a new website in one step:
+```
+composer create-project-website /path/to/new/website
+```
+This downloads the `filecms-website` skeleton archive, unzips it into `/path/to/new/website`, then runs `composer require unlikelysource/filecms-core` inside that directory to install the latest version of this package.
+
+### Manual Install
 1. Clone the `filecms-website` repository to the project root of your new website.
   * If you have `git` installed run this command from a command prompt / terminal window:
 ```
@@ -20,7 +28,7 @@ git clone https://github.com/dbierer/filecms-website.git /path/to/website
 ```
   * If you don't have `git` installed, just download the ZIP file from:
 ```
-https://github.com/dbierer/filecms-website/archive/refs/heads/main.zip
+https://github.com/dbierer/filecms-website/archive/refs/tags/0.1.zip
 ```
   * And unzip into `/path/to/website`
 2. Use composer to install `unlikelysource/filecms-core` and 3rd party source code (e.g. PHPMailer)
