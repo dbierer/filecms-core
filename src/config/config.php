@@ -1,7 +1,7 @@
 <?php
 // change settings as needed and then copy to /src/config/config.php on your main website
-// use the skeleton project to set up your website (https://github.com/dbierer/filecms-website)
-// the skeleton project contains a copy of this file
+// use this skeleton project to set up your website (https://github.com/dbierer/filecms-website)
+// unlikelysource/filecms-core also contains a copy of this file
 $config = [
     'CARDS'  => 'cards',
     'LAYOUT' => BASE_DIR . '/templates/layout/layout.html',
@@ -9,6 +9,7 @@ $config = [
     'HOST'   => '',
     'DELIM'  => '%%',
     'CONTENTS' => '%%CONTENTS%%',
+    'HTML_DIR' => HTML_DIR,
     'CLICK_CSV' => BASE_DIR . '/logs/clicks.csv',
     'MSG_MARKER'  => '<!-- %%MESSAGES%% -->',
     'CONTACT_LOG' => BASE_DIR . '/logs/contact.log',
@@ -20,6 +21,12 @@ $config = [
         'font_file'      => SRC_DIR . '/fonts/FreeSansBold.ttf',
         'img_dir'        => BASE_DIR . '/public/img/captcha',
         'num_bytes'      => 3,  // each byte == 2 characters
+        'rotate_min'     => -50,
+        'rotate_max'     => 50,
+        'line_min'       => 5,
+        'line_max'       => 50,
+        'dot_min'        => 20,
+        'dot_max'        => 60,
     ],
     'META' => [
         'default' => [
@@ -65,7 +72,7 @@ $config = [
         ],
         // only files with these extensions can be edited
         'allowed_ext'  => ['html','htm'],
-        'ckeditor'     => [
+        'tinymce'      => [
             'width'  => '100%',
             'height' => 400,
         ],
