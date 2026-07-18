@@ -39,6 +39,25 @@ php composer.phar self-update
 php composer.phar install
 ```
 
+## Upgrading
+### 2026-07: Switch the Super editor from CKEditor to TinyMCE
+Run this from the root of your filecms-website-based project (the directory that contains `composer.json`, `src`, `templates` and, after `composer install`, `vendor`):
+```
+composer upgrade-2026-07
+```
+This is the Composer-script equivalent of `upgrade_2026_07.sh` in the `filecms-website` repository. It:
+1. Backs up `templates/super/edit.phtml`, `src/upload.php` and `src/config/config.php` (adds a `.bak` suffix)
+2. Adds `tinymce/tinymce` to `composer.json` and installs it
+3. Copies the TinyMCE assets into `public/tinymce`
+4. Downloads the updated `templates/super/edit.phtml` and `src/upload.php`
+
+Two manual steps remain afterward:
+1. In `src/config/config.php`, rename the `'SUPER' => 'ckeditor'` key to `'tinymce'` (keep the existing `width` and `height` values):
+```
+'tinymce' => [ 'width' => '100%', 'height' => 400 ],
+```
+2. If you had customized `templates/super/edit.phtml` or `src/upload.php`, re-apply those customizations by comparing against the `.bak` files just created, then remove the `.bak` files once you're satisfied.
+
 ## Basic website config
 All references are from `/path/to/website`
 
@@ -512,5 +531,10 @@ public static function array_combine_whatever(array $headers, array $data, strin
   * Invokes `ob_start()` and does a PHP `require` on the layout file
   * Runs layout as a PHP script
   * Allows you to automate things like the copyright date (e.g. `<?= date('Y); ?>`
+### tag: v0.3.9
 #### Updated PHP Minimum Version
 * Updated the minimum PHP version to PHP 8
+### tag: v0.4.0
+#### `FileCMS\Common\Install\UpgradeTinymce`
+* New Composer script `composer upgrade-2026-07`, PHP equivalent of `upgrade_2026_07.sh` from `filecms-website`
+* Switches the Super editor from CKEditor to TinyMCE: backs up affected files, requires `tinymce/tinymce`, copies its assets into `public/tinymce`, and downloads the updated `templates/super/edit.phtml` and `src/upload.php`

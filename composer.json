@@ -30,7 +30,8 @@
         "phpunit/phpunit": ">=9.5"
     },
     "scripts": {
-        "create-project-website": "FileCMS\\Common\\Install\\CreateProject::run"
+        "create-project-website": "FileCMS\\Common\\Install\\CreateProject::run",
+        "upgrade-2026-07": "FileCMS\\Common\\Install\\UpgradeTinymce::run"
     },
     "autoload-dev" : {
         "psr-4" : {
