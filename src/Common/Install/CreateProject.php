@@ -14,7 +14,7 @@ use ZipArchive;
  */
 class CreateProject
 {
-    public const ARCHIVE_URL = 'https://github.com/dbierer/filecms-website/archive/refs/tags/0.1.zip';
+    public const ARCHIVE_URL = 'https://github.com/dbierer/filecms-website/archive/refs/tags/0.1.1.zip';
     public const PACKAGE     = 'unlikelysource/filecms-core';
 
     public static function run(Event $event) : void
