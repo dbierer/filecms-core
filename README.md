@@ -40,19 +40,12 @@ php composer.phar install
 ```
 
 ## Upgrading
-### One-time setup: register upgrade scripts in your project
-Composer only runs `scripts` defined in your own project's `composer.json`, not those of a dependency, so `unlikelysource/filecms-core` can't add itself there automatically during `composer update`. After running `composer update` (or `composer install`), run this once from the root of your filecms-website-based project:
-```
-vendor/bin/filecms-install-hooks
-```
-This adds the `upgrade-2026-07` entry to your project's `composer.json`. It's safe to re-run at any point (e.g. after future `composer update` runs) -- it's a no-op if the entry is already present. Once registered, you can run the upgrade script below at any time, at your own discretion.
-
 ### 2026-07: Switch the Super editor from CKEditor to TinyMCE
 Run this from the root of your filecms-website-based project (the directory that contains `composer.json`, `src`, `templates` and, after `composer install`, `vendor`):
 ```
-composer upgrade-2026-07
+src/upgrade_2026_07.sh
 ```
-This is the Composer-script equivalent of `upgrade_2026_07.sh` in the `filecms-website` repository. It:
+This script does the following:
 1. Backs up `templates/super/edit.phtml`, `src/upload.php` and `src/config/config.php` (adds a `.bak` suffix)
 2. Adds `tinymce/tinymce` to `composer.json` and installs it
 3. Copies the TinyMCE assets into `public/tinymce`
