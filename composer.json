@@ -33,6 +33,9 @@
         "create-project-website": "FileCMS\\Common\\Install\\CreateProject::run",
         "upgrade-2026-07": "FileCMS\\Common\\Install\\UpgradeTinymce::run"
     },
+    "bin": [
+        "bin/filecms-install-hooks"
+    ],
     "autoload-dev" : {
         "psr-4" : {
             "FileCMSTest\\" : "tests/"

@@ -1,0 +1,23 @@
+#!/usr/bin/env php
+<?php
+$autoloadFile = null;
+foreach ([__DIR__ . '/../../../autoload.php', __DIR__ . '/../vendor/autoload.php'] as $candidate) {
+    if (is_file($candidate)) {
+        $autoloadFile = realpath($candidate);
+        break;
+    }
+}
+if ($autoloadFile === null) {
+    fwrite(STDERR, "Unable to locate the Composer autoloader.\n");
+    exit(1);
+}
+require $autoloadFile;
+
+$projectRoot = dirname($autoloadFile, 2);
+
+try {
+    FileCMS\Common\Install\InstallHooks::run($projectRoot);
+} catch (Throwable $e) {
+    fwrite(STDERR, $e->getMessage() . "\n");
+    exit(1);
+}
