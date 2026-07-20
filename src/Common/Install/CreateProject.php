@@ -68,15 +68,16 @@ class CreateProject
             }
             $zip->extractTo($extractDir);
             $zip->close();
-            return;
+        } else {
+            // Fall back to the system "unzip" utility if ext-zip isn't available.
+            exec(sprintf('unzip -qq %s -d %s', escapeshellarg($zipFile), escapeshellarg($extractDir)), $output, $exitCode);
+            if ($exitCode !== 0) {
+                throw new RuntimeException(
+                    'Unable to extract archive: the "zip" PHP extension is missing and no "unzip" utility was found.'
+                );
+            }
         }
-        // Fall back to the system "unzip" utility if ext-zip isn't available.
-        exec(sprintf('unzip -qq %s -d %s', escapeshellarg($zipFile), escapeshellarg($extractDir)), $output, $exitCode);
-        if ($exitCode !== 0) {
-            throw new RuntimeException(
-                'Unable to extract archive: the "zip" PHP extension is missing and no "unzip" utility was found.'
-            );
-        }
+        return;
     }
 
     protected static function install(string $target) : void
