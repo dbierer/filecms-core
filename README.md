@@ -12,25 +12,15 @@ Simple PHP framework that builds HTML files from HTML widgets.
 
 License: Apache v2
 
-## Initial Installation
-1. Clone the `filecms-website` repository to the project root of your new website.
-  * If you have `git` installed run this command from a command prompt / terminal window:
+## Website Installation
+### Automated Installation
+To perform an automated installation, run the following command, where `/path/to/website` is the directory path to your new website:
+1. Install Composer (see [https://getcomposer.org/doc/00-intro.md](https://getcomposer.org/doc/00-intro.md])
+2. Run the following command:
 ```
-git clone https://github.com/dbierer/filecms-website.git /path/to/website
+composer create-project unlikelysource/filecms-website /path/to/website
 ```
-  * If you don't have `git` installed, just download the ZIP file and unzip into `/path/to/website`:
-```
-mkdir /path/to/website
-cd /path/to/website
-wget https://github.com/dbierer/filecms-website/archive/refs/tags/0.2.zip
-unzip 0.2.zip
-```
-2. Complete the installation using Composer:
-```
-wget https://getcomposer.org/download/latest-stable/composer.phar
-php composer.phar self-update
-php composer.phar install
-```
+This single command clones the repository, installs `unlikelysource/filecms-core` and its dependencies (PHPMailer, TinyMCE), and copies the TinyMCE assets into `public/tinymce` -- no further manual steps are required.
 
 ## CK Editor Replacement
 Run this from the root of your filecms-website-based project (the directory that contains `composer.json`, `src`, `templates` and, after `composer install`, `vendor`):
@@ -526,7 +516,9 @@ public static function array_combine_whatever(array $headers, array $data, strin
 ### tag: v0.3.9
 #### Updated PHP Minimum Version
 * Updated the minimum PHP version to PHP 8
-### tag: v0.4.0
+### tag: v0.3.10
 #### `FileCMS\Common\Install\UpgradeTinymce`
 * New Composer script `composer upgrade-2026-07`, PHP equivalent of `upgrade_2026_07.sh` from `filecms-website`
 * Switches the Super editor from CKEditor to TinyMCE: backs up affected files, requires `tinymce/tinymce`, copies its assets into `public/tinymce`, and downloads the updated `templates/super/edit.phtml` and `src/upload.php`
+### tag: v0.3.14
+* Removed create-projecgt + Moved TinyMCE update to BASH script
