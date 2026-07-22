@@ -78,6 +78,15 @@ class Profile
         session_destroy();
     }
     /**
+     * Removes auth file
+     *
+     * @return void
+     */
+    public static function clear_auth() : void
+    {
+        unset($_SESSION[self::PROFILE_KEY]);
+    }
+    /**
      * Verifies profile against stored
      *
      * @param bool $log : set TRUE if you want to log verifications

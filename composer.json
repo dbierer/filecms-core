@@ -29,9 +29,6 @@
     "require-dev": {
         "phpunit/phpunit": ">=9.5"
     },
-    "scripts": {
-        "create-project-website": "FileCMS\\Common\\Install\\CreateProject::run"
-    },
     "autoload-dev" : {
         "psr-4" : {
             "FileCMSTest\\" : "tests/"
