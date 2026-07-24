@@ -119,7 +119,7 @@ class Upload
         }
         // looks good ... move the file
         $uploadpath = str_replace('//', '/', $upload_dir . '/' . $fn);
-        if (move_uploaded_file($_FILES['upload']['tmp_name'], $uploadpath)) {
+        if (move_uploaded_file($tmp_file, $uploadpath)) {
             chmod($uploadpath, self::UPLOAD_PERMISSIONS);
             $url = str_replace('//', '/', $url . '/' . $fn);
             $message->addMessage(sprintf(self::UPLOAD_SUCCESS, $fn, filesize($tmp_file)));
