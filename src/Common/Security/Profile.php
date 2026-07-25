@@ -87,6 +87,33 @@ class Profile
         unset($_SESSION[self::PROFILE_KEY]);
     }
     /**
+     * Authenticates login credentials against config-stored password hashes
+     *
+     * Looks up the account by $name -- either $config['SUPER']['alt_logins'][$name]
+     * or, if no matching alt_logins entry exists, the default $config['SUPER']
+     * username/password -- and verifies $pwd against its stored password_hash().
+     *
+     * @param array  $config : full site config array (reads $config['SUPER'])
+     * @param string $name   : submitted username
+     * @param string $pwd    : submitted plaintext password
+     * @return bool TRUE if $name exists and $pwd matches its stored hash
+     */
+    public static function authenticate(array $config, string $name, string $pwd) : bool
+    {
+        $super = $config['SUPER'] ?? [];
+        if (isset($super['alt_logins'][$name])) {
+            $valid_name = $super['alt_logins'][$name]['username'] ?? '';
+            $valid_hash = $super['alt_logins'][$name]['password'] ?? '';
+        } else {
+            $valid_name = $super['username'] ?? '';
+            $valid_hash = $super['password'] ?? '';
+        }
+        if ($valid_name === '' || $valid_hash === '' || $name !== $valid_name) {
+            return FALSE;
+        }
+        return password_verify($pwd, $valid_hash);
+    }
+    /**
      * Verifies profile against stored
      *
      * @param bool $log : set TRUE if you want to log verifications

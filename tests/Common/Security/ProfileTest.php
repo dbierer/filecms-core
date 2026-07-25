@@ -72,4 +72,62 @@ class ProfileTest extends TestCase
         $actual   = empty($_SESSION['test']);
         $this->assertEquals($expected, $actual);
     }
+    public function testAuthenticateReturnsTrueForMatchingDefaultCredentials()
+    {
+        $this->config['SUPER']['username'] = 'admin';
+        $this->config['SUPER']['password'] = password_hash('secret', PASSWORD_BCRYPT);
+        $expected = TRUE;
+        $actual   = Profile::authenticate($this->config, 'admin', 'secret');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAuthenticateReturnsFalseForWrongPassword()
+    {
+        $this->config['SUPER']['username'] = 'admin';
+        $this->config['SUPER']['password'] = password_hash('secret', PASSWORD_BCRYPT);
+        $expected = FALSE;
+        $actual   = Profile::authenticate($this->config, 'admin', 'wrong');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAuthenticateReturnsFalseForUnknownUsername()
+    {
+        $this->config['SUPER']['username'] = 'admin';
+        $this->config['SUPER']['password'] = password_hash('secret', PASSWORD_BCRYPT);
+        $expected = FALSE;
+        $actual   = Profile::authenticate($this->config, 'nobody', 'secret');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAuthenticateUsesAltLoginsWhenNameMatches()
+    {
+        $this->config['SUPER']['username'] = 'admin';
+        $this->config['SUPER']['password'] = password_hash('secret', PASSWORD_BCRYPT);
+        $this->config['SUPER']['alt_logins'] = [
+            'editor' => [
+                'username' => 'editor',
+                'password' => password_hash('otherSecret', PASSWORD_BCRYPT),
+            ],
+        ];
+        $expected = TRUE;
+        $actual   = Profile::authenticate($this->config, 'editor', 'otherSecret');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAuthenticateDoesNotFallBackToDefaultPasswordForAltLoginName()
+    {
+        $this->config['SUPER']['username'] = 'admin';
+        $this->config['SUPER']['password'] = password_hash('secret', PASSWORD_BCRYPT);
+        $this->config['SUPER']['alt_logins'] = [
+            'editor' => [
+                'username' => 'editor',
+                'password' => password_hash('otherSecret', PASSWORD_BCRYPT),
+            ],
+        ];
+        $expected = FALSE;
+        $actual   = Profile::authenticate($this->config, 'editor', 'secret');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAuthenticateReturnsFalseWhenSuperConfigMissing()
+    {
+        $expected = FALSE;
+        $actual   = Profile::authenticate([], 'admin', 'secret');
+        $this->assertEquals($expected, $actual);
+    }
 }

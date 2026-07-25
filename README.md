@@ -1,4 +1,4 @@
-# FileCMS
+# FileCMS (v0.3.16)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -521,4 +521,16 @@ public static function array_combine_whatever(array $headers, array $data, strin
 * New Composer script `composer upgrade-2026-07`, PHP equivalent of `upgrade_2026_07.sh` from `filecms-website`
 * Switches the Super editor from CKEditor to TinyMCE: backs up affected files, requires `tinymce/tinymce`, copies its assets into `public/tinymce`, and downloads the updated `templates/super/edit.phtml` and `src/upload.php`
 ### tag: v0.3.14
-* Removed create-projecgt + Moved TinyMCE update to BASH script
+* Removed create-project + Moved TinyMCE update to BASH script
+### tag: v0.3.15
+#### `FileCMS\Common\File\Upload`
+* Fixed `handle()`: the final `move_uploaded_file()` call was hardcoded to read `$_FILES['upload']['tmp_name']` instead of reusing `$tmp_file` (already extracted from `$_FILES[$field]`), so any caller using a field name other than `'upload'` always failed at the move step even after passing validation
+### tag: v0.3.16
+#### `FileCMS\Common\Security\Profile`
+* Added `Profile::authenticate(array $config, string $name, string $pwd) : bool`
+  * Looks up the account by `$name`, checking `SUPER.alt_logins` first, then falling back to the default `SUPER` username/password
+  * Verifies `$pwd` against the stored hash with `password_verify()`
+* Added `ProfileTest` coverage for `authenticate()`: matching credentials, wrong password, unknown username, `alt_logins` matching, `alt_logins` not falling back to the default account's password, and a missing `SUPER` config
+#### `src/config/config.php`
+* `SUPER.password` and `SUPER.alt_logins.*.password` are now expected to be `password_hash()` bcrypt hashes instead of plaintext
+  * Generate one with: `php -r "echo password_hash('your password', PASSWORD_BCRYPT), PHP_EOL;"`

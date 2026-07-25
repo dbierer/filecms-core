@@ -37,7 +37,9 @@ $config = [
     ],
     'SUPER' => [
         'username'  => 'REPL_SUPER_NAME',  // fill in your username here
-        'password'  => 'REPL_SUPER_PWD',   // fill in your password here
+        // password must be a bcrypt hash, not plaintext -- generate one with:
+        //   php -r "echo password_hash('your password', PASSWORD_BCRYPT), PHP_EOL;"
+        'password'  => 'REPL_SUPER_PWD_HASH',  // fill in your password_hash() here
         /*
          * extra login validation fields
          * change key/value pairs as desired
@@ -52,8 +54,8 @@ $config = [
         ],
         'alt_logins' => [
             'REPL_OTHER_NAME' => [
-                'username'  => 'REPL_OTHER_NAME',  // fill in alt username here
-                'password'  => 'REPL_OTHER_PWD',   // fill in alt password here
+                'username'  => 'REPL_OTHER_NAME',      // fill in alt username here
+                'password'  => 'REPL_OTHER_PWD_HASH',  // fill in alt password_hash() here
             ],
             // add others as needed
         ],
