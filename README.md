@@ -1,4 +1,4 @@
-# FileCMS (v0.3.16)
+# FileCMS (v0.3.17)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -257,6 +257,30 @@ The skeleton app includes under `/templates` a file `contact.phtml` that impleme
 * Uses the PHPMailer package
 * Configuration can be done in `/src/config/config.php` using the `COMPANY_EMAIL` key
 * CAPTCHA configuration can be done in `/src/config/config.php` using the `CAPTCHA` key
+* The same CAPTCHA is also used to protect `/super/login`
+
+### CAPTCHA
+`FileCMS\Common\Image\Captcha::writeImages()` renders the whole phrase as a single distorted image rather than one clean image per character. Rendering each character separately hands an automated reader its segmentation step for free -- it doesn't even need to figure out where one character ends and the next begins. Instead:
+* Each character is drawn directly onto one shared canvas, using a randomly chosen font (from `font_files`), size, rotation and baseline
+* Characters are placed with overlapping ("negative kerning") spacing, so adjacent glyphs touch or overlap
+* Background/foreground noise (lines and dots) is colored close to the text's own color range instead of fully random, so it can't be stripped out by simple color thresholding
+* The finished image is warped with a 2D wave distortion (`FileCMS\Common\Image\Strategy\Wave`)
+
+Here's a breakdown of the `CAPTCHA` config keys
+
+| Key | Explanation |
+| :-- | :---------- |
+| input_tag_name | Name of the `$_POST` field expected to hold the phrase the user typed in |
+| sess_hash_key | Name of the `$_SESSION` key holding the `password_hash()` of the correct phrase |
+| font_file | Fallback font, used if `font_files` is empty |
+| font_files | Pool of fonts randomized per character; more variety makes it harder for an OCR model trained on a single font |
+| img_dir | Directory the generated CAPTCHA PNG is written to (must be web-accessible) |
+| num_bytes | CAPTCHA phrase length is `num_bytes * 2` hex characters |
+| rotate_min / rotate_max | Degrees of random rotation applied to each character |
+| overlap_min / overlap_max | Pixels shaved off each character's horizontal advance so adjacent glyphs touch/overlap |
+| line_min / line_max | Range for the random count of background noise lines |
+| dot_min / dot_max | Range for the random count of foreground noise dots |
+| wave_x_amplitude / wave_y_amplitude | Max pixel displacement of the horizontal/vertical wave distortion applied to the finished image |
 
 ## Import Feature
 You can enable the import feature by setting the `IMPORT::enable` config key to `TRUE`.
@@ -534,3 +558,26 @@ public static function array_combine_whatever(array $headers, array $data, strin
 #### `src/config/config.php`
 * `SUPER.password` and `SUPER.alt_logins.*.password` are now expected to be `password_hash()` bcrypt hashes instead of plaintext
   * Generate one with: `php -r "echo password_hash('your password', PASSWORD_BCRYPT), PHP_EOL;"`
+#### `tests/Common/Contact/AntiSpamTest.php`
+* Switched from `PASSWORD_DEFAULT` to `PASSWORD_BCRYPT`, the only `password_hash()` call in the codebase that wasn't already pinned to it
+### tag: v0.3.17
+#### `FileCMS\Common\Image\Captcha`
+* Hardened the CAPTCHA against automated (OCR) reading. `writeImages()` used to render each character as its own separate PNG file, which handed an automated reader a free segmentation step -- it never had to figure out where one character ends and the next begins. It now renders the whole phrase as a single distorted image:
+  * Each character is drawn directly onto one shared canvas with a randomly chosen font (from the new `font_files` config key), size, rotation and baseline
+  * Characters are placed with overlapping ("negative kerning") spacing so adjacent glyphs touch
+  * The finished image is warped with a new 2D wave distortion, `FileCMS\Common\Image\Strategy\Wave`
+  * Noise lines/dots are now colored close to the text's own color range instead of fully random, so they can't be stripped out with simple color thresholding
+  * Wired up the `rotate_min`/`rotate_max`, `line_min`/`line_max` and `dot_min`/`dot_max` config keys, which existed in the config skeleton but were never actually read by the code
+  * Added new config keys: `font_files`, `overlap_min`, `overlap_max`, `wave_x_amplitude`, `wave_y_amplitude`
+* Added `CaptchaTest`, `SingleCharTest` and `WaveTest` coverage
+#### `FileCMS\Common\Image\SingleChar`
+* Constructor now accepts an optional shared `\GdImage`, so multiple characters can be drawn onto the same canvas
+* Switched from a 256-color palette image to a truecolor image (a shared canvas with several characters plus noise can easily allocate more than 256 distinct colors)
+* `randFgColor()` now accepts optional `$min`/`$max` bounds
+#### `FileCMS\Common\Image\Strategy\LineFill` / `DotFill`
+* `writeFill()` now accepts optional `$colorMin`/`$colorMax` bounds instead of always using fully random 0-255 colors
+#### `FileCMS\Common\Image\Strategy\Wave`
+* New class: ripples an image with a 2D sine-wave pixel displacement (`Wave::distort()`)
+#### `src/config/config.php`
+* `CAPTCHA.rotate_min`/`rotate_max` default changed from -50/50 to -33/33; `line_min`/`line_max` from 5/50 to 12/24; `dot_min`/`dot_max` from 20/60 to 30/50 (tuned empirically for the new fused-image rendering)
+* Added `font_files`, `overlap_min`, `overlap_max`, `wave_x_amplitude`, `wave_y_amplitude`

@@ -18,15 +18,33 @@ $config = [
     'CAPTCHA' => [
         'input_tag_name' => 'phrase',
         'sess_hash_key'  => 'hash',
-        'font_file'      => SRC_DIR . '/fonts/FreeSansBold.ttf',
+        'font_file'      => SRC_DIR . '/fonts/FreeSansBold.ttf',   // fallback font
+        // pool of fonts randomized per character -- font variety defeats
+        // OCR/classifiers trained against a single consistent glyph shape
+        'font_files'     => [
+            SRC_DIR . '/fonts/FreeSansBold.ttf',
+            SRC_DIR . '/fonts/FreeSansBoldOblique.ttf',
+            SRC_DIR . '/fonts/FreeSerifBold.ttf',
+            SRC_DIR . '/fonts/FreeSerifBoldItalic.ttf',
+            SRC_DIR . '/fonts/FreeMonoBold.ttf',
+            SRC_DIR . '/fonts/FreeMonoBoldOblique.ttf',
+        ],
         'img_dir'        => BASE_DIR . '/public/img/captcha',
         'num_bytes'      => 3,  // each byte == 2 characters
-        'rotate_min'     => -50,
-        'rotate_max'     => 50,
-        'line_min'       => 5,
-        'line_max'       => 50,
-        'dot_min'        => 20,
-        'dot_max'        => 60,
+        'rotate_min'     => -33,  // degrees, per character
+        'rotate_max'     => 33,
+        // pixels shaved off each character's advance so adjacent glyphs
+        // touch/overlap -- denies clean per-character segmentation
+        'overlap_min'    => 9,
+        'overlap_max'    => 17,
+        'line_min'       => 12,   // count of background noise lines
+        'line_max'       => 24,
+        'dot_min'        => 30,   // count of foreground noise dots
+        'dot_max'        => 50,
+        // amplitude (pixels) of the 2D wave distortion applied to the
+        // finished image
+        'wave_x_amplitude' => 6,
+        'wave_y_amplitude' => 4,
     ],
     'META' => [
         'default' => [

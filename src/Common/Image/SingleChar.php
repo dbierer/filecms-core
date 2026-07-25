@@ -39,6 +39,10 @@ class SingleChar
      * @param float $angle
      * @param int $textX : x coordinate of text
      * @param int $textY : y coordinate of text
+     * @param \GdImage|null $image : if provided, draws onto this shared canvas
+     *        instead of creating a new one -- lets a CAPTCHA phrase be
+     *        composed of several SingleChar instances that all render onto
+     *        the same underlying image (see Captcha::writeImages())
      */
     public function __construct(
         string $text,
@@ -48,7 +52,8 @@ class SingleChar
         int    $size     = self::DEFAULT_TX_SIZE,
         float  $angle    = self::DEFAULT_TX_ANGLE,
         int    $textX    = self::DEFAULT_TX_X,
-        int    $textY    = self::DEFAULT_TX_Y)
+        int    $textY    = self::DEFAULT_TX_Y,
+                $image    = NULL)
     {
         if (!function_exists('imagecreate'))
             throw new Exception(self::ERR_GD);
@@ -60,7 +65,10 @@ class SingleChar
         $this->angle    = $angle;
         $this->textX    = $textX;
         $this->textY    = $textY;
-        $this->image    = \imagecreate($width, $height);
+        // truecolor: a shared canvas can end up with many dozens of
+        // allocated colors (multiple characters + noise), which would
+        // exhaust a palette image's 256-color limit
+        $this->image    = $image ?? \imagecreatetruecolor($width, $height);
         $this->fgColor  = $this->colorAlloc(self::DEFAULT_FG);
         $this->bgColor  = $this->colorAlloc(self::DEFAULT_BG);
     }
@@ -68,14 +76,15 @@ class SingleChar
      * Randomizes FG color
      * Stores value in $this->fgColor
      *
-     *
+     * @param int $min : minimum value (per channel)
+     * @param int $max : maximum value (per channel)
      * @return void
      */
-    public function randFgColor()
+    public function randFgColor(int $min = 0x22, int $max = 0x88)
     {
-        $r = rand(0x22, 0x88);
-        $g = rand(0x22, 0x88);
-        $b = rand(0x22, 0x88);
+        $r = rand($min, $max);
+        $g = rand($min, $max);
+        $b = rand($min, $max);
         $this->fgColor = $this->colorAlloc([$r, $g, $b]);
     }
     /**

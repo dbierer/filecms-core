@@ -12,9 +12,14 @@ class DotFill
      *
      * @param SingleChar $char
      * @param int $num : number of dots
+     * @param int $colorMin : minimum value (per channel) for dot color --
+     *        keeping this close to the text color's range (rather than
+     *        full 0-255 random) denies an attacker an easy win by simply
+     *        thresholding out very light or very saturated noise
+     * @param int $colorMax : maximum value (per channel) for dot color
      * @return void
      */
-    public static function writeFill(SingleChar $char, int $num) : void
+    public static function writeFill(SingleChar $char, int $num, int $colorMin = 0, int $colorMax = 255) : void
     {
         for ($x = 0; $x < $num; $x++) {
             // calc random x1, y1 (start)
@@ -24,9 +29,9 @@ class DotFill
             $x2 = $x1 + $width;
             $y2 = $y1 + $width;
             // calc random color
-            $r = rand(0,255);
-            $g = rand(0,255);
-            $b = rand(0,255);
+            $r = rand($colorMin, $colorMax);
+            $g = rand($colorMin, $colorMax);
+            $b = rand($colorMin, $colorMax);
             $color = \imagecolorallocate($char->image, $r, $g, $b);
             \imagefilledrectangle($char->image, $x1, $y1, $x2, $y2, $color);
         }
