@@ -22,6 +22,54 @@ composer create-project unlikelysource/filecms-website /path/to/website
 ```
 This single command clones the repository, installs `unlikelysource/filecms-core` and its dependencies (PHPMailer, TinyMCE), and copies the TinyMCE assets into `public/tinymce` -- no further manual steps are required.
 
+## Upgrading From filecms-core v2.x to v3.x
+Composer versions `0.2.*` of this package are referred to in commit history and elsewhere as "v2.x"; `0.3.*` (the line this README's version number, above, belongs to) is "v3.x". If your site was originally built against a `0.2.*` release and you're bringing it up to the current `0.3.*` release, there are several breaking changes to work through -- they're listed here in the order you're likely to hit them.
+
+### 1. PHP 8 is now required
+As of `v0.3.9`, the minimum PHP version is PHP 8 (v2.x supported PHP >=7.4). Confirm your server's PHP version before doing anything else -- everything below assumes PHP 8+.
+
+### 2. Authentication moved from files to native PHP sessions
+`v0.3.1` removed `Common\Security\Profile::getAuthFileName()`, `Profile::build()`, and the `DEFAULT_AUTH_DIR` / `DEFAULT_AUTH_PREFIX` / `AUTH_FILE_TTL` constants. In v2.x, a successful login wrote an auth file to disk (under an `AUTH_DIR` config key) that was checked on subsequent requests; v3.x stores that same information in `$_SESSION` instead and never touches the filesystem for it.
+* Remove the `AUTH_DIR` config key if your `config.php` still has one -- it's no longer read
+* Make sure `session_start()` is being called (the `filecms-website` skeleton's `bootstrap.php` already does this) and that PHP's session save path is writable
+* Clean up (or just ignore) any leftover auth files sitting in your old `AUTH_DIR` -- they're now dead weight, not a security-relevant artifact, since nothing reads them anymore
+
+### 3. Passwords must be `password_hash()` hashes, not plaintext
+`v0.3.16` changed login verification (`Profile::authenticate()`) to compare the submitted password against a stored hash with `password_verify()`, rather than comparing plaintext strings. **This is the change most likely to silently break login on an in-place upgrade** -- if `SUPER.password` (or any `SUPER.alt_logins.*.password`) is still a plaintext string after upgrading, no password will ever verify against it, and the account becomes unable to log in with no obvious error.
+
+For every account, generate a hash and replace the plaintext value in `config.php` using this script:
+```
+./get_password_hash.sh NEW_PASSWORD
+```
+```
+'SUPER' => [
+    'username' => 'admin',
+    'password' => '$2y$12$...',   // output of the command above, not the plaintext password
+    'alt_logins' => [
+        'editor' => [
+            'username' => 'editor',
+            'password' => '$2y$12$...',   // same here
+        ],
+    ],
+],
+```
+`alt_logins` itself (multiple named accounts, each with its own username/password) has been part of the config schema since the original v2-to-v3 transition, but its verification lived in `filecms-website`'s `login.phtml` template as a hand-rolled comparison; `v0.3.16` moved that logic into `Profile::authenticate()` in core. If your site has its own copy of that old comparison code, you can retire it in favor of the shared method.
+
+### 4. CKEditor replaced by TinyMCE
+If your v2.x site is still running the original CKEditor integration, follow the [CK Editor Replacement](#ck-editor-replacement) instructions below (`v0.3.10` introduced the TinyMCE migration script). The `SUPER.ckeditor` config key becomes `SUPER.tinymce`.
+
+### 5. CAPTCHA hardening (recommended, not required)
+`v0.3.17` reworked `Common\Image\Captcha` to render the whole phrase as a single distorted image instead of one clean image per character, which is substantially harder for automated (OCR) systems to read -- see the [CAPTCHA](#captcha) section below for the full explanation and config keys. This is backward compatible: a v2.x-era `config.php` without the new `font_files` / `overlap_min` / `overlap_max` / `wave_x_amplitude` / `wave_y_amplitude` keys will keep working with built-in defaults, but you won't get the new hardening until you add them.
+
+### Checklist
+1. Confirm your installation is running PHP >= 8
+2. `composer update unlikelysource/filecms-core`
+3. Remove the `AUTH_DIR` config key if you have it set; confirm sessions work
+4. Regenerate every `SUPER.password` / `SUPER.alt_logins.*.password` as a `password_hash()` hash (using `vendor/unlikelysource/filecms-core/get_password_hash.sh`)
+5. Migrate CKEditor to TinyMCE, if not already done (using `vendor/unlikelysource/filecms-core/tinymce_upgrade_2026_07.sh`)
+6. Add the new `CAPTCHA` config keys to opt into the hardened rendering
+7. Test login (including any `alt_logins` accounts) end-to-end before considering the upgrade complete
+
 ## CK Editor Replacement
 Run this from the root of your filecms-website-based project (the directory that contains `composer.json`, `src`, `templates` and, after `composer install`, `vendor`):
 ```
@@ -188,7 +236,8 @@ Example configuration for super user:
 // other config not shown
 'SUPER' => [
     'username'  => 'REPL_SUPER_NAME',  // fill in your username here
-    'password'  => 'REPL_SUPER_PWD',   // fill in your password here
+    // use `vendor/unlikelysource/filecms-core/get_password_hash.sh NEW_PASSWORD` to get the hashed value to store here:
+    'password'  => '$2y$12$N57MR.2KWUMyNtdjrv7X4ejAl/5XgyPFIUH2TCbCLhbUxbSGIut9q', // hash for 'REPL_SUPER_PWD'
     /*
      * extra login validation fields
      * change key/value pairs as desired
@@ -204,7 +253,8 @@ Example configuration for super user:
     'alt_logins' => [
         'REPL_OTHER_NAME' => [
             'username'  => 'REPL_OTHER_NAME',  // fill in alt username here
-            'password'  => 'REPL_OTHER_PWD',   // fill in alt password here
+            // use `get_password_hash.sh NEW_PASSWORD` to get the hashed value to store here:
+            'password'  => '$2y$12$ytOLGb9SRaFppla4MnExtuRFzhDDn0WitMD7AD4uMEqlT9fJpLuEa', // hash for 'REPL_OTHER_PWD'
         ],
         // add others as needed
     ],
@@ -240,10 +290,10 @@ Here's a breakdown of the `SUPER` config keys
 | Key | Explanation |
 | :-- | :---------- |
 | username | Super user login name |
-| password | Super user login password |
+| password | Super user login password hash (using `./get_password_hash.sh`)|
 | attempts | Maximum number of failed login attempts.  If this number is exceeded, a random third authentication field is required for login. |
 | validation | Set of key:value pairs randomly selected each time you login. Values can be in the form of an array. |
-| alt_logins | Additional usernames and passwords |
+| alt_logins | Additional usernames and password hashes |
 | message  | Message that displayed if login fails |
 | profile  | Array of `$_SERVER` keys that form the super user's profile once logged in |
 | login_fields | Field names drawn from your `login.phtml` login form |
@@ -265,6 +315,39 @@ The skeleton app includes under `/templates` a file `contact.phtml` that impleme
 * Characters are placed with overlapping ("negative kerning") spacing, so adjacent glyphs touch or overlap
 * Background/foreground noise (lines and dots) is colored close to the text's own color range instead of fully random, so it can't be stripped out by simple color thresholding
 * The finished image is warped with a 2D wave distortion (`FileCMS\Common\Image\Strategy\Wave`)
+
+Example configuration:
+```
+'CAPTCHA' => [
+    'input_tag_name'    => 'phrase',
+    'sess_hash_key'     => 'hash',
+    'font_file'         => SRC_DIR . '/fonts/FreeSansBold.ttf',
+    'font_files'        => [
+        SRC_DIR . '/fonts/FreeSansBold.ttf',
+        SRC_DIR . '/fonts/FreeSansBoldOblique.ttf',
+        SRC_DIR . '/fonts/FreeSerifBold.ttf',
+        SRC_DIR . '/fonts/FreeSerifBoldItalic.ttf',
+        SRC_DIR . '/fonts/FreeMonoBold.ttf',
+        SRC_DIR . '/fonts/FreeMonoBoldOblique.ttf',
+    ],
+    'img_dir'           => BASE_DIR . '/public/img/captcha',
+    'num_bytes'      => 3,  // each byte == 2 characters
+    'rotate_min'     => -40,  // degrees, per character
+    'rotate_max'     => 40,
+    // pixels shaved off each character's advance so adjacent glyphs
+    // touch/overlap -- denies clean per-character segmentation
+    'overlap_min'    => 9,
+    'overlap_max'    => 17,
+    'line_min'       => 20,   // count of background noise lines
+    'line_max'       => 40,
+    'dot_min'        => 40,   // count of foreground noise dots
+    'dot_max'        => 70,
+    // amplitude (pixels) of the 2D wave distortion applied to the
+    // finished image
+    'wave_x_amplitude' => 2,
+    'wave_y_amplitude' => 1,
+],
+```
 
 Here's a breakdown of the `CAPTCHA` config keys
 
