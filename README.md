@@ -1,4 +1,4 @@
-# FileCMS (v0.3.17)
+# FileCMS (v0.3.18)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -680,3 +680,6 @@ public static function array_combine_whatever(array $headers, array $data, strin
 #### `src/config/config.php`
 * `CAPTCHA.rotate_min`/`rotate_max` default changed from -50/50 to -33/33; `line_min`/`line_max` from 5/50 to 12/24; `dot_min`/`dot_max` from 20/60 to 30/50 (tuned empirically for the new fused-image rendering)
 * Added `font_files`, `overlap_min`, `overlap_max`, `wave_x_amplitude`, `wave_y_amplitude`
+### tag: v0.3.18
+* Updated README.md
+* Added `get_password_hash.sh` to project root
