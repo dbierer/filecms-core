@@ -12,15 +12,17 @@ Simple PHP framework that builds HTML files from HTML widgets.
 
 License: Apache v2
 
-## Website Installation
-### Automated Installation
-To perform an automated installation, run the following command, where `/path/to/website` is the directory path to your new website:
-1. Install Composer (see [https://getcomposer.org/doc/00-intro.md](https://getcomposer.org/doc/00-intro.md])
-2. Run the following command:
-```
-composer create-project unlikelysource/filecms-website /path/to/website
-```
-This single command clones the repository, installs `unlikelysource/filecms-core` and its dependencies (PHPMailer, TinyMCE), and copies the TinyMCE assets into `public/tinymce` -- no further manual steps are required.
+## Critical Updates
+**2026-07-26: Important Update!!!**
+### Passwords Now Hashed in Config
+The latest version of `filecms-core` now expects the passwords stored in `src/config.php` to be hashed using Bcrypt.
+Run `get_password_hash.sh PLAIN_TEXT_PASSWORD` (or `vendor/unlikelysource/filecms-core/get_password_hash.sh PLAIN_TEXT_PASSWORD`) and copy and paste the output into the `$config['SUPER']['password']` key and any `$config['SUPER']['alt_logins']` keys you've added.
+### CAPTCHA Changes
+Have a look at the updated **CAPTCHA** documentation (scroll further down to see it). Ten new config parameters have been added to make the CAPTCHA more difficult for automated hacking systems to crack. Copy the recommended settings from this documentation page, and adjust as needed.
+
+## CK Editor Replacement
+**2026-07-18: Important Update!!!**
+Run `vendor/unlikelysource/filecms-core/tinymce_upgrade_2026_07.sh`
 
 ## Upgrading From filecms-core v2.x to v3.x
 Composer versions `0.2.*` of this package are referred to in commit history and elsewhere as "v2.x"; `0.3.*` (the line this README's version number, above, belongs to) is "v3.x". If your site was originally built against a `0.2.*` release and you're bringing it up to the current `0.3.*` release, there are several breaking changes to work through -- they're listed here in the order you're likely to hit them.
@@ -39,7 +41,9 @@ As of `v0.3.9`, the minimum PHP version is PHP 8 (v2.x supported PHP >=7.4). Con
 
 For every account, generate a hash and replace the plaintext value in `config.php` using this script:
 ```
-./get_password_hash.sh NEW_PASSWORD
+./get_password_hash.sh PLAIN_TEXT_PLAIN_TEXT_PASSWORD
+# or 
+vendor/unlikelysource/filecms-core/get_password_hash.sh PLAIN_TEXT_PASSWORD`
 ```
 ```
 'SUPER' => [
@@ -87,6 +91,16 @@ Two manual steps remain afterward:
 'tinymce' => [ 'width' => '100%', 'height' => 400 ],
 ```
 2. If you had customized `templates/super/edit.phtml` or `src/upload.php`, re-apply those customizations by comparing against the `.bak` files just created, then remove the `.bak` files once you're satisfied.
+
+## Website Installation
+### Automated Installation
+To perform an automated installation, run the following command, where `/path/to/website` is the directory path to your new website:
+1. Install Composer (see [https://getcomposer.org/doc/00-intro.md](https://getcomposer.org/doc/00-intro.md])
+2. Run the following command:
+```
+composer create-project unlikelysource/filecms-website /path/to/website
+```
+This single command clones the repository, installs `unlikelysource/filecms-core` and its dependencies (PHPMailer, TinyMCE), and copies the TinyMCE assets into `public/tinymce` -- no further manual steps are required.
 
 ## Basic website config
 All references are from `/path/to/website`
@@ -236,7 +250,8 @@ Example configuration for super user:
 // other config not shown
 'SUPER' => [
     'username'  => 'REPL_SUPER_NAME',  // fill in your username here
-    // use `vendor/unlikelysource/filecms-core/get_password_hash.sh NEW_PASSWORD` to get the hashed value to store here:
+    // use `vendor/unlikelysource/filecms-core/get_password_hash.sh NEW_PLAIN_TEXT_PASSWORD` to get the hashed value to store here
+    // you can also run `vendor/unlikelysource/filecms-core/get_password_hash.sh`
     'password'  => '$2y$12$N57MR.2KWUMyNtdjrv7X4ejAl/5XgyPFIUH2TCbCLhbUxbSGIut9q', // hash for 'REPL_SUPER_PWD'
     /*
      * extra login validation fields
@@ -253,7 +268,8 @@ Example configuration for super user:
     'alt_logins' => [
         'REPL_OTHER_NAME' => [
             'username'  => 'REPL_OTHER_NAME',  // fill in alt username here
-            // use `get_password_hash.sh NEW_PASSWORD` to get the hashed value to store here:
+            // use `get_password_hash.sh NEW_PLAIN_TEXT_PASSWORD` to get the hashed value to store here:
+            // you can also run `vendor/unlikelysource/filecms-core/get_password_hash.sh`
             'password'  => '$2y$12$ytOLGb9SRaFppla4MnExtuRFzhDDn0WitMD7AD4uMEqlT9fJpLuEa', // hash for 'REPL_OTHER_PWD'
         ],
         // add others as needed
@@ -640,9 +656,9 @@ public static function array_combine_whatever(array $headers, array $data, strin
 * Added `ProfileTest` coverage for `authenticate()`: matching credentials, wrong password, unknown username, `alt_logins` matching, `alt_logins` not falling back to the default account's password, and a missing `SUPER` config
 #### `src/config/config.php`
 * `SUPER.password` and `SUPER.alt_logins.*.password` are now expected to be `password_hash()` bcrypt hashes instead of plaintext
-  * Generate one with: `php -r "echo password_hash('your password', PASSWORD_BCRYPT), PHP_EOL;"`
+  * Generate one with: `php -r "echo password_hash('your password', PLAIN_TEXT_PASSWORD_BCRYPT), PHP_EOL;"`
 #### `tests/Common/Contact/AntiSpamTest.php`
-* Switched from `PASSWORD_DEFAULT` to `PASSWORD_BCRYPT`, the only `password_hash()` call in the codebase that wasn't already pinned to it
+* Switched from `PLAIN_TEXT_PASSWORD_DEFAULT` to `PLAIN_TEXT_PASSWORD_BCRYPT`, the only `password_hash()` call in the codebase that wasn't already pinned to it
 ### tag: v0.3.17
 #### `FileCMS\Common\Image\Captcha`
 * Hardened the CAPTCHA against automated (OCR) reading. `writeImages()` used to render each character as its own separate PNG file, which handed an automated reader a free segmentation step -- it never had to figure out where one character ends and the next begins. It now renders the whole phrase as a single distorted image:
