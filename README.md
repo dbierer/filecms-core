@@ -1,4 +1,4 @@
-# FileCMS (v0.3.18)
+# FileCMS (v0.3.19)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -700,3 +700,14 @@ public static function array_combine_whatever(array $headers, array $data, strin
 ### tag: v0.3.18
 * Updated README.md
 * Added `get_password_hash.sh` to project root
+### tag: v0.3.19
+#### `FileCMS\Common\Security\Validation`
+* `alpha()` / `alnum()` switched from `ctype_alpha()` / `ctype_alnum()` (ASCII-only) to a Unicode-aware regex (`\p{L}`, `\p{N}`, `\p{M}`), so multi-byte scripts (Khmer, Thai, Arabic, accented Latin, etc.) validate correctly -- `\p{M}` is needed for combining-mark scripts like Khmer, where vowel signs and the "coeng" subscript marker are separate codepoints from the base letter, not letters on their own
+* `notTooLong()` / `notTooShort()` switched from `strlen()` to `mb_strlen()`, so size limits are measured in characters, not bytes
+* `runValidators()` now dispatches via `static::` instead of `self::`, so a subclass overriding an individual validator is actually called instead of silently bypassed
+* Added a new private `mbCtype()` helper backing `alpha()` / `alnum()`
+#### `FileCMS\Common\Security\Filter`
+* `truncate()` switched from `substr()` / `strlen()` to `mb_substr()` / `mb_strlen()`, so it can no longer slice a multi-byte character in half
+* `runFilters()` now dispatches via `static::` instead of `self::`, same reasoning as `runValidators()`
+#### `composer.json`
+* Added `ext-mbstring` to `require`
