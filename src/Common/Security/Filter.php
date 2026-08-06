@@ -45,7 +45,9 @@ class Filter extends Base
     public static function runFilters(string $text, array $callbacks)
     {
         foreach ($callbacks as $method => $params) {
-            $text = self::$method($text, $params);
+            // static:: (not self::) so a subclass overriding e.g. truncate() is still
+            // dispatched to correctly when runFilters() is called on it
+            $text = static::$method($text, $params);
         }
         return $text;
     }
@@ -73,6 +75,9 @@ class Filter extends Base
     }
     /**
      * Truncates string to XXX number of characters
+     * Uses mb_substr()/mb_strlen(), not substr()/strlen(), so a multi-byte UTF-8
+     * character (e.g. Khmer script) is never split mid-character, which would
+     * otherwise corrupt the trailing byte sequence.
      *
      * @param string $text
      * @param array $params : looks for 'length' key
@@ -82,8 +87,8 @@ class Filter extends Base
     {
         $length = (isset($params['length']))
                 ? (int) $params['length']
-                : strlen($text);
-        return substr($text, 0, $length);
+                : mb_strlen($text, 'UTF-8');
+        return mb_substr($text, 0, $length, 'UTF-8');
     }
     /**
      * Produces current date and time

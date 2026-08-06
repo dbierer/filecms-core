@@ -75,6 +75,29 @@ class ValidationTest extends TestCase
         $actual   = Validation::alnum($text, ['allowed' => [' ']]);
         $this->assertEquals($expected, $actual);
     }
+    public function testAlphaAllowsMultibyteScript()
+    {
+        // Khmer for "hello", combining vowel signs and all
+        $text     = 'សួស្តី';
+        $expected = TRUE;
+        $actual   = Validation::alpha($text);
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAlnumAllowsMultibyteScriptWithCombiningMarks()
+    {
+        // "ចាន់" includes U+17CB (SIGN BANTOC), a combining mark (\p{M}), not a letter
+        $text     = 'ចាន់ សុភា';
+        $expected = TRUE;
+        $actual   = Validation::alnum($text, ['allowed' => [' ']]);
+        $this->assertEquals($expected, $actual);
+    }
+    public function testAlnumRejectsDisallowedPunctuationInMultibyteText()
+    {
+        $text     = 'ចាន់_សុភា';
+        $expected = FALSE;
+        $actual   = Validation::alnum($text, ['allowed' => [' ']]);
+        $this->assertEquals($expected, $actual);
+    }
     public function testPhone()
     {
         $text     = '+1 111-222-3333';
@@ -151,6 +174,24 @@ class ValidationTest extends TestCase
         $text     = 'TEST0000';
         $expected = TRUE;
         $actual   = Validation::notTooShort($text);
+        $this->assertEquals($expected, $actual);
+    }
+    public function testNotTooLongCountsCharactersNotBytes()
+    {
+        // 4 Khmer characters, 3 bytes each = 12 bytes -- byte-counting would
+        // wrongly reject this against a size of 4
+        $text     = 'ខមែរ';
+        $expected = TRUE;
+        $actual   = Validation::notTooLong($text, ['size' => 4]);
+        $this->assertEquals($expected, $actual);
+    }
+    public function testNotTooShortCountsCharactersNotBytes()
+    {
+        // same 4-character string; byte-counting (12 bytes) would wrongly pass
+        // this against a size of 8 that character-counting (4) correctly fails
+        $text     = 'ខមែរ';
+        $expected = FALSE;
+        $actual   = Validation::notTooShort($text, ['size' => 8]);
         $this->assertEquals($expected, $actual);
     }
     public function testGetMessages()

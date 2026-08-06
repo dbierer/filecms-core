@@ -24,6 +24,7 @@
     },
     "require": {
         "php": ">=8",
+        "ext-mbstring": "*",
         "phpmailer/phpmailer": ">=6.1"
     },
     "require-dev": {

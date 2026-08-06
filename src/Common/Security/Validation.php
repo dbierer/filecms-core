@@ -57,7 +57,9 @@ class Validation extends Base
         $actual   = 0;
         foreach ($callbacks as $method => $params) {
             $expected++;
-            $actual += (int) self::$method($text, $params);
+            // static:: (not self::) so a subclass overriding e.g. alnum() is still
+            // dispatched to correctly when runValidators() is called on it
+            $actual += (int) static::$method($text, $params);
         }
         return ($expected === $actual);
     }
@@ -72,6 +74,8 @@ class Validation extends Base
     }
     /**
      * Validates alpha
+     * Unicode-aware: accepts letters from any script (Latin, Khmer, etc.), not just
+     * ASCII, so this is safe to use on multi-byte UTF-8 input.
      *
      * @param string $text
      * @param array $params : Allows list of characters in "allowed" parameter key
@@ -83,7 +87,7 @@ class Validation extends Base
         $allowed = $params['allowed'] ?? [];
         foreach ($allowed as $item)
             $text  = str_replace($item, '', $text);
-        if (!ctype_alpha($text)) {
+        if (!self::mbCtype($text, '\p{L}\p{M}')) {
             self::$errMessage[] = self::ERR_ALPHA;
             $valid = FALSE;
         }
@@ -110,6 +114,8 @@ class Validation extends Base
     }
     /**
      * Validates alpha-numeric
+     * Unicode-aware: accepts letters and digits from any script (Latin, Khmer, etc.),
+     * not just ASCII, so this is safe to use on multi-byte UTF-8 input.
      *
      * @param string $text
      * @param array $params : Allows list of characters in "allowed" parameter key
@@ -121,7 +127,7 @@ class Validation extends Base
         $allowed = $params['allowed'] ?? [];
         foreach ($allowed as $item)
             $text  = str_replace($item, '', $text);
-        if (!ctype_alnum($text)) {
+        if (!self::mbCtype($text, '\p{L}\p{N}\p{M}')) {
             self::$errMessage[] = self::ERR_ALNUM;
             $valid = FALSE;
         }
@@ -172,6 +178,9 @@ class Validation extends Base
     }
     /**
      * Checks if string is too long
+     * Counts characters via mb_strlen(), not bytes, so a multi-byte UTF-8 string
+     * (e.g. Khmer script, 3 bytes/char) isn't measured as artificially longer than
+     * it visually is.
      *
      * @param string $text
      * @param array $params : "size" : string must be < or = to this value
@@ -180,10 +189,11 @@ class Validation extends Base
     public static function notTooLong(string $text, array $params = [])
     {
         $valid = TRUE;
+        $length = mb_strlen($text, 'UTF-8');
         $size  = (isset($params['size']))
                ? (int) $params['size']
-               : strlen($text);
-        if (strlen($text) > $size) {
+               : $length;
+        if ($length > $size) {
             self::$errMessage[] = self::ERR_TOO_LONG;
             $valid = FALSE;
         }
@@ -191,6 +201,7 @@ class Validation extends Base
     }
     /**
      * Checks if string is too short
+     * Counts characters via mb_strlen(), not bytes -- see notTooLong().
      *
      * @param string $text
      * @param array $params : "size" : string must be > or = to this value
@@ -199,13 +210,30 @@ class Validation extends Base
     public static function notTooShort(string $text, array $params = [])
     {
         $valid = TRUE;
+        $length = mb_strlen($text, 'UTF-8');
         $size  = (isset($params['size']))
                ? (int) $params['size']
-               : strlen($text);
-        if (strlen($text) < $size) {
+               : $length;
+        if ($length < $size) {
             self::$errMessage[] = self::ERR_TOO_SHORT;
             $valid = FALSE;
         }
         return $valid;
+    }
+    /**
+     * ctype_alpha()/ctype_alnum() only recognize ASCII, so this uses a Unicode-aware
+     * regex instead: \p{L} matches letters in any script, \p{N} matches digits in any
+     * script, \p{M} matches combining marks -- required for scripts like Khmer, where
+     * vowel signs and the "coeng" subscript marker are separate combining codepoints,
+     * not letters on their own. An empty string is invalid, matching ctype_*()'s own
+     * behavior on ''.
+     *
+     * @param string $text
+     * @param string $classes : one or more \p{...} Unicode property escapes
+     * @return bool
+     */
+    private static function mbCtype(string $text, string $classes): bool
+    {
+        return $text !== '' && (bool) preg_match('/^[' . $classes . ']+$/u', $text);
     }
 }

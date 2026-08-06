@@ -13,10 +13,27 @@ Simple PHP framework that builds HTML files from HTML widgets.
 License: Apache v2
 
 ## Critical Updates
+**2026-08-06: Important Update!!!**
+### Multi-byte (UTF-8) Support in Validation and Filter
+`Common\Security\Validation::alpha()` / `alnum()` previously used `ctype_alpha()` / `ctype_alnum()`, which only recognize ASCII and silently reject valid non-Latin text (Khmer, Thai, Arabic, accented Latin, etc.). They now use a Unicode-aware regex (`\p{L}`, `\p{N}`, `\p{M}`) instead, so any script validates correctly -- including combining-mark scripts like Khmer, where vowel signs and the "coeng" subscript marker are separate codepoints from the base letter, not letters themselves.
+
+`Validation::notTooLong()` / `notTooShort()` and `Filter::truncate()` previously measured/sliced by byte count (`strlen()` / `substr()`), which over-counts multi-byte characters and can corrupt a UTF-8 string if the cut lands mid-character. They now use `mb_strlen()` / `mb_substr()` instead.
+
+This adds a hard dependency on the `mbstring` PHP extension (declared in `composer.json` as `ext-mbstring`). It ships with virtually every PHP install, but confirm it's enabled (`php -m | grep mbstring`) before upgrading.
+
+**Behavior change to be aware of:** `notTooLong` / `notTooShort` size limits are now measured in characters, not bytes. A multi-byte string that previously failed a `size` check purely because of its byte count (while actually under the limit by character count) will now correctly pass; conversely, if you were relying on the old byte-based check as a proxy for storage size, re-check it against the new character-based one.
+
+If you subclassed `Validation` or `Filter` to override an individual method (e.g. a custom `alnum()`), note that `runValidators()` / `runFilters()` now dispatch via `static::` instead of `self::`, so your override will actually be called where it previously would have been silently bypassed.
+
 **2026-07-26: Important Update!!!**
 ### Passwords Now Hashed in Config
 The latest version of `filecms-core` now expects the passwords stored in `src/config.php` to be hashed using Bcrypt.
 Run `get_password_hash.sh PLAIN_TEXT_PASSWORD` (or `vendor/unlikelysource/filecms-core/get_password_hash.sh PLAIN_TEXT_PASSWORD`) and copy and paste the output into the `$config['SUPER']['password']` key and any `$config['SUPER']['alt_logins']` keys you've added.
+You can also run this PHP code from the command line to obtain the hashed version of your password (substitute your password in place of "PLAIN_TEXT_PASSWORD"):
+```
+php -r "echo password_hash('PLAIN_TEXT_PASSWORD', PASSWORD_BCRYPT) . PHP_EOL;"
+```
+
 ### CAPTCHA Changes
 Have a look at the updated **CAPTCHA** documentation (scroll further down to see it). Ten new config parameters have been added to make the CAPTCHA more difficult for automated hacking systems to crack. Copy the recommended settings from this documentation page, and adjust as needed.
 

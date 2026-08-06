@@ -40,6 +40,16 @@ class FilterTest extends TestCase
         $actual   = Filter::truncate($text, ['length' => 64]);
         $this->assertEquals($expected, $actual);
     }
+    public function testTruncateCountsCharactersNotBytes()
+    {
+        // 10 Khmer characters, 3 bytes each; a byte-based substr(0, 5) would cut
+        // mid-character (into byte 5 of the 2nd character) and corrupt the string
+        $text     = str_repeat('ខ', 10);
+        $expected = str_repeat('ខ', 5);
+        $actual   = Filter::truncate($text, ['length' => 5]);
+        $this->assertEquals($expected, $actual);
+        $this->assertTrue(mb_check_encoding($actual, 'UTF-8'));
+    }
     public function testDate()
     {
         $text = '';
