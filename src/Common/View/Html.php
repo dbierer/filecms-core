@@ -70,11 +70,17 @@ class Html
     public $config  = [];
     public $allowed = [];   // allowed extensions
     public $notFound = FALSE;  // set TRUE if requested page not found
-    public function __construct(array $config, string $uri, string $htmlDir)
+    public $lang    = '';   // e.g. "en" | "fr" -- set once here, not re-passed by every caller
+    /**
+     * @param string $lang : language-based structure, e.g. templates/site/en, templates/site/fr.
+     *     Leave empty for a flat (non-language) structure, e.g. templates/site/home.phtml directly.
+     */
+    public function __construct(array $config, string $uri, string $htmlDir, string $lang = '')
     {
         $this->config  = $config;
         $this->uri     = $uri;
         $this->htmlDir = $htmlDir;
+        $this->lang    = $lang;
         $this->cardDir = $config['CARDS'] ?? static::DEFAULT_CARD_DIR;
         $this->delim   = $config['DELIM'] ?? static::DEFAULT_DELIM;
         $this->allowed = $config['SUPER']['allowed_ext'] ?? self::DEFAULT_EXT;
@@ -86,10 +92,13 @@ class Html
      * @param string $body : existing body if any
      * @param bool $cards : set to FALSE if you don't want cards injected
      * @param bool $meta : set to FALSE if you don't want meta tags injected
+     * @param string $lang  : language-based structure override; defaults to the
+     *     $lang passed to the constructor when omitted (empty string here)
      * @return string $html : full HTML page
      */
-    public function render(string $body = '', bool $cards = TRUE, bool $meta = TRUE)
+    public function render(string $body = '', bool $cards = TRUE, bool $meta = TRUE, string $lang = '')
     {
+        $lang = ($lang !== '') ? $lang : $this->lang;
         // pull in layout and body
         $output = '';
         $layout = $this->config['LAYOUT'] ?? static::DEFAULT_LAYOUT;
@@ -110,7 +119,7 @@ class Html
             }
         }
         // work with body: if html, just read contents
-        $body = $this->partial($body, $cards);
+        $body = $this->partial($body, $cards, $lang);
         // render and deliver final output
         $search   = $this->config['CONTENTS']
                   ?? self::DEFAULT_CONTENTS
@@ -126,10 +135,13 @@ class Html
      *
      * @param string $body : existing body if any
      * @param bool $cards : set to FALSE if you don't want cards injected
+     * @param string $lang  : language-based structure override; defaults to the
+     *     $lang passed to the constructor when omitted (empty string here)
      * @return string $html : full HTML page
      */
-    public function partial(string $body = '', bool $cards = TRUE)
+    public function partial(string $body = '', bool $cards = TRUE, string $lang = '')
     {
+        $lang = ($lang !== '') ? $lang : $this->lang;
         // pull in layout and body
         $msg    = '';
         $output = '';
@@ -137,7 +149,7 @@ class Html
         if (empty($body)) {
             // try HTML and HTM extensions
             foreach ($this->allowed as $ext) {
-                $bodyFn = $this->htmlDir . $this->uri . '.' . $ext;
+                $bodyFn = $this->getBodyFn($ext, $lang);
                 if (file_exists($bodyFn)) {
                     $body = file_get_contents($bodyFn);
                     break;
@@ -145,7 +157,7 @@ class Html
             }
             // if $body still not populated, try PHTML
             if (!$body) {
-                $bodyFn = $this->htmlDir . $this->uri . '.phtml';
+                $bodyFn = $this->getBodyFn('phtml', $lang);
                 // if phtml, use "include" + output buffering to grab contents
                 if (file_exists($bodyFn)) {
                     $body = $this->runPhpFile($bodyFn);
@@ -153,8 +165,9 @@ class Html
                 } else {
                     $this->notFound = TRUE;
                     $this->uri = '/home';
+                    $lang_fix = (empty($lang)) ? '/' : '/' . $lang . '/';
                     $home   = $this->config['HOME'] ?? self::DEFAULT_HOME;
-                    $bodyFn = $this->htmlDir . '/' . $home;
+                    $bodyFn = str_replace('//', '/', $this->htmlDir . $lang_fix . $home);
                     if (substr($bodyFn, -5) === 'phtml') {
                         $body = $this->runPhpFile($bodyFn);
                     } else {
@@ -169,6 +182,23 @@ class Html
             $body = preg_replace_callback($search, [$this, 'injectCards'], $body);
         }
         return $body;
+    }
+    /**
+     * Produces body filename, honoring a language-based structure if $lang is set
+     * (e.g. templates/site/en/home.phtml) -- falls back to the flat structure
+     * (templates/site/home.phtml) if $lang is empty, or if $this->uri already
+     * contains the language segment (avoids double-prefixing).
+     *
+     * @param string $ext  : html | htm | phtml
+     * @param string $lang : en | fr | ""
+     * @return string $body_fn
+     */
+    protected function getBodyFn(string $ext, string $lang = '') : string
+    {
+        $lang_fix = '/' . $lang . '/';
+        return (empty($lang) || str_contains($this->uri, $lang_fix))
+                ? $this->htmlDir . $this->uri . '.' . $ext
+                : str_replace('//', '/', $this->htmlDir . $lang_fix . $this->uri . '.' . $ext);
     }
     /**
      * Populates <HEAD> section with  meta tags and title
@@ -190,7 +220,9 @@ class Html
     }
     /**
      * Populates body with cards
-     * Called from preg_replace_callback()
+     * Called from preg_replace_callback(), which only ever invokes this with a single
+     * ($match) argument -- so this reads $this->lang directly rather than taking a
+     * $lang parameter a caller could never actually supply.
      *
      * @param array $match : what got matched during this pass
      * @return string $body : HTML w/ cards injected
@@ -208,7 +240,7 @@ class Html
             $dir = $item;
             $qualifier = '';
         }
-        $dir = $this->getDir($dir);
+        $dir = $this->getDir($dir, $this->lang);
         // randomize linked list of cards
         if (empty($qualifier)) {
             $iter = $this->getCardIterator($dir);
@@ -247,15 +279,29 @@ class Html
      * Produces confirmed directory path
      *
      * @param string $dir   : relative directory
+     * @param string $lang  : set this if you have a language-based structure (i.e. templates/site/en, templates/site/fr, etc.)
      * @return string $path : absolute directory path or '' if not found
      */
-    public function getDir(string $dir)
+    public function getDir(string $dir, string $lang = '')
     {
-        $path = str_replace('//', '/', $this->htmlDir . '/' . $dir);
-        if (!file_exists($path)) {
-            $path = str_replace('//', '/', $this->htmlDir . '/' . strtolower($dir));
+        $candidates = [];
+        if (!empty($lang)) {
+            // prefer a language-specific dir, exact case then lowercase (markup
+            // often writes %%BLOG%%, the directory on disk is "blog")
+            $candidates[] = $this->htmlDir . '/' . $lang . '/' . $dir;
+            $candidates[] = $this->htmlDir . '/' . $lang . '/' . strtolower($dir);
         }
-        return (file_exists($path)) ? $path : '';
+        // fall back to the flat (non-language) structure if there's no
+        // language-specific version of this directory at all
+        $candidates[] = $this->htmlDir . '/' . $dir;
+        $candidates[] = $this->htmlDir . '/' . strtolower($dir);
+        foreach ($candidates as $path) {
+            $path = str_replace('//', '/', $path);
+            if (file_exists($path)) {
+                return $path;
+            }
+        }
+        return '';
     }
     /**
      * Produces randomized iteration of cards

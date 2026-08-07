@@ -1,4 +1,4 @@
-# FileCMS (v0.3.19)
+# FileCMS (v0.3.20)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -711,3 +711,15 @@ public static function array_combine_whatever(array $headers, array $data, strin
 * `runFilters()` now dispatches via `static::` instead of `self::`, same reasoning as `runValidators()`
 #### `composer.json`
 * Added `ext-mbstring` to `require`
+### tag: v0.3.20
+#### `FileCMS\Common\View\Html`
+* Added optional language-based routing, e.g. `templates/site/en/home.phtml` / `templates/site/kh/home.phtml` instead of a single flat `templates/site/home.phtml`. Fully backward compatible -- nothing changes for a caller that never passes `$lang`.
+* `__construct(array $config, string $uri, string $htmlDir, string $lang = '')` -- new optional 4th parameter, stored as `$this->lang`. Leave it `''` for the original flat structure.
+* `render()` / `partial()` both gained an optional trailing `string $lang = ''` parameter. When omitted (or passed as `''`), they fall back to the `$lang` given to the constructor -- so a caller only has to specify the language once, at construction, not on every `render()` call.
+* `partial()`'s not-found fallback (when neither an `.html`/`.htm` nor `.phtml` file is found for the request) now also resolves the configured `HOME` page under the active language directory, instead of only the flat path.
+* New protected `getBodyFn(string $ext, string $lang = '')`, extracted from `partial()`'s file-resolution logic. Avoids double-prefixing if `$uri` already contains the language segment (e.g. a request that landed directly on `/en/home` rather than being routed there) by checking `str_contains($this->uri, '/'.$lang.'/')` before adding another one.
+* `getDir(string $dir, string $lang = '')` -- new optional 2nd parameter. Tries, in order: `{lang}/{dir}` exact case, `{lang}/{dir}` lowercase, flat `{dir}` exact case, flat `{dir}` lowercase -- so a language-specific card directory is preferred when one exists, but a directory that was never localized still resolves via the flat structure instead of silently coming up empty.
+* `injectCards(array $match)` -- reads `$this->lang` directly rather than taking a `$lang` parameter, since it's invoked via `preg_replace_callback()`, which only ever calls it with the single `$match` argument; a parameter there could never actually receive a value from the caller.
+#### Tests
+* `HtmlTest` -- 11 new cases covering: the constructor storing `$lang`, `render()`/`partial()` defaulting to the constructor's `$lang`, an explicit `$lang` argument overriding it, the flat structure still working when `$lang` is never passed (regression guard), no double-prefixing when `$uri` already contains the language segment, the not-found fallback resolving the language-specific `HOME` page, and `getDir()`'s full fallback chain (language-specific found, and language-specific missing entirely).
+* New fixtures: `templates/site/en/home.phtml`, `templates/site/kh/home.phtml`, `templates/site/en/blog/cards/en-only.html`.

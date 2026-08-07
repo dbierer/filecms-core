@@ -147,6 +147,97 @@ EOT;
         $actual   = (bool) strpos($html, '%%BLOG=3%%');
         $this->assertEquals($expected, $actual);
     }
+    public function testConstructorStoresLang()
+    {
+        $html = new Html($this->config, '/home', BASE_DIR . '/templates/site', 'en');
+        $expected = 'en';
+        $actual   = $html->lang;
+        $this->assertEquals($expected, $actual);
+    }
+    public function testConstructorDefaultsLangToEmptyString()
+    {
+        $expected = '';
+        $actual   = $this->html->lang;
+        $this->assertEquals($expected, $actual, 'lang should default to "" for a flat (non-language) structure');
+    }
+    public function testPartialFallsBackToFlatStructureWhenLangEmpty()
+    {
+        // regression guard: existing (pre-language-support) callers never pass $lang,
+        // so this must keep resolving templates/site/home.phtml directly
+        $expected = TRUE;
+        $actual   = (bool) strpos($this->html->partial(), 'Business Name or Tagline');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testRenderUsesConstructorLangByDefault()
+    {
+        $html = new Html($this->config, '/home', BASE_DIR . '/templates/site', 'en');
+        $expected = TRUE;
+        $actual   = (bool) strpos($html->render(), 'English Home');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testRenderUsesConstructorLangByDefaultForOtherLanguage()
+    {
+        $html = new Html($this->config, '/home', BASE_DIR . '/templates/site', 'kh');
+        $expected = TRUE;
+        $actual   = (bool) strpos($html->render(), 'Khmer Home');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testRenderExplicitLangOverridesConstructorLang()
+    {
+        $html = new Html($this->config, '/home', BASE_DIR . '/templates/site', 'en');
+        $expected = TRUE;
+        $actual   = (bool) strpos($html->render('', TRUE, TRUE, 'kh'), 'Khmer Home');
+        $this->assertEquals($expected, $actual, 'An explicit $lang argument should win over the constructor value');
+    }
+    public function testGetBodyFnDoesNotDoublePrefixWhenUriAlreadyContainsLang()
+    {
+        // $uri already carries the language segment (as it would if a caller still
+        // prepends it, or a request lands on an already-prefixed URL like /en/home)
+        $html = new Html($this->config, '/en/home', BASE_DIR . '/templates/site', 'en');
+        $body = $html->render();
+        $expected = TRUE;
+        $actual   = (bool) strpos($body, 'English Home');
+        $this->assertEquals($expected, $actual);
+        $expected = FALSE;
+        $actual   = $html->notFound;
+        $this->assertEquals($expected, $actual, 'Double-prefixing would miss the file and fall through to the not-found fallback');
+    }
+    public function testPartialNotFoundFallbackUsesLangSpecificHome()
+    {
+        $html = new Html($this->config, '/this-page-does-not-exist', BASE_DIR . '/templates/site', 'kh');
+        $body = $html->partial();
+        $expected = TRUE;
+        $actual   = (bool) strpos($body, 'Khmer Home');
+        $this->assertEquals($expected, $actual);
+        $expected = TRUE;
+        $actual   = $html->notFound;
+        $this->assertEquals($expected, $actual);
+    }
+    public function testGetDirWithLangReturnsLangSpecificPath()
+    {
+        $expected = BASE_DIR . '/templates/site/en/blog';
+        $actual   = $this->html->getDir('blog', 'en');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testGetDirWithLangFallsBackToFlatDirIfLangDirMissing()
+    {
+        // no templates/site/kh/blog directory exists -- getDir() falls back to the
+        // flat structure, same as if no $lang had been passed at all
+        $expected = BASE_DIR . '/templates/site/blog';
+        $actual   = $this->html->getDir('blog', 'kh');
+        $this->assertEquals($expected, $actual);
+    }
+    public function testInjectCardsUsesInstanceLangForCardDirectory()
+    {
+        $html = new Html($this->config, '/home', BASE_DIR . '/templates/site', 'en');
+        $body = $html->partial('<html><body>%%BLOG%%</body></html>');
+        $expected = TRUE;
+        $actual   = (bool) strpos($body, 'English-Only Card');
+        $this->assertEquals($expected, $actual, 'Card from templates/site/en/blog/cards not injected');
+        $expected = FALSE;
+        $actual   = (bool) strpos($body, 'Card One');
+        $this->assertEquals($expected, $actual, 'Flat-structure card should not be injected when $lang is set and a language-specific dir exists');
+    }
     public function testRenderReplacesMessageMarker()
     {
         $layout = HTML_DIR . '/testM.html';
