@@ -1,4 +1,4 @@
-# FileCMS (v0.3.20)
+# FileCMS (v0.3.21)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -723,3 +723,11 @@ public static function array_combine_whatever(array $headers, array $data, strin
 #### Tests
 * `HtmlTest` -- 11 new cases covering: the constructor storing `$lang`, `render()`/`partial()` defaulting to the constructor's `$lang`, an explicit `$lang` argument overriding it, the flat structure still working when `$lang` is never passed (regression guard), no double-prefixing when `$uri` already contains the language segment, the not-found fallback resolving the language-specific `HOME` page, and `getDir()`'s full fallback chain (language-specific found, and language-specific missing entirely).
 * New fixtures: `templates/site/en/home.phtml`, `templates/site/kh/home.phtml`, `templates/site/en/blog/cards/en-only.html`.
+### tag: v0.3.21
+#### `FileCMS\Common\Security\Csrf`
+* New class providing session-backed CSRF token generation and verification, alongside the existing `Profile`, `Validation`, and `Filter` classes in the same namespace.
+* `token() : string` -- returns the current session's token, generating one with `random_bytes(32)` on first call. One token per session rather than rotated per-request or per-form, so a multi-step form (e.g. a signup wizard) doesn't invalidate itself between steps.
+* `verify($submitted) : bool` -- checks a submitted value against the session's token using `hash_equals()` (constant-time, avoids the timing side-channel a byte-by-byte `===` comparison would leak). Returns `FALSE` if no token exists yet for the session, or if `$submitted` isn't a string.
+* `field(string $fieldName = 'csrf_token') : string` -- convenience method that renders a ready-to-use `<input type="hidden">` tag carrying the current token, so a template only needs one call rather than wiring up `token()` + `htmlspecialchars()` itself.
+#### Tests
+* `CsrfTest` -- 9 new cases covering: token generation on first call, token stability across repeated calls within the same session, `verify()` succeeding against a matching token and failing against a wrong one, a missing session token, non-string and `null` submitted values, and `field()`'s rendered markup (default and custom field name).
