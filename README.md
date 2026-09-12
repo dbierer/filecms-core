@@ -731,3 +731,7 @@ public static function array_combine_whatever(array $headers, array $data, strin
 * `field(string $fieldName = 'csrf_token') : string` -- convenience method that renders a ready-to-use `<input type="hidden">` tag carrying the current token, so a template only needs one call rather than wiring up `token()` + `htmlspecialchars()` itself.
 #### Tests
 * `CsrfTest` -- 9 new cases covering: token generation on first call, token stability across repeated calls within the same session, `verify()` succeeding against a matching token and failing against a wrong one, a missing session token, non-string and `null` submitted values, and `field()`'s rendered markup (default and custom field name).
+### tag: v0.3.22
+#### `FileCMS\Common\File\Upload`
+* `upload()` now distinguishes an oversized upload from a generic invalid-file error. Previously, a file rejected by PHP itself (for exceeding `upload_max_filesize` or a form's `MAX_FILE_SIZE`) fell through to the same generic `UPLOAD_ERROR_UPLOAD` message as a missing/empty file, giving the user no indication of the actual cause.
+* Reads `$_FILES[$field]['error']` and, when it's `UPLOAD_ERR_INI_SIZE` or `UPLOAD_ERR_FORM_SIZE`, returns the existing `UPLOAD_ERROR_FILE_SIZE` message (reporting the server's configured `upload_max_filesize`) instead of `UPLOAD_ERROR_UPLOAD`.

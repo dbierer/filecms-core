@@ -87,6 +87,7 @@ class Upload
         $fn          = $_FILES[$field]['name'] ?? '';
         $size        = $_FILES[$field]['size'] ?? 0;
         $tmp_file    = $_FILES[$field]['tmp_name'] ?? '';
+        $err_code    = $_FILES[$field]['error'] ?? UPLOAD_ERR_NO_FILE;
         $url         = $this->config['url'] ?? self::UPLOAD_DEFAULT_URL;
         $allowed_ext = $this->config['allowed_ext'] ?? self::UPLOAD_DEFAULT_EXT;
         $message     = Messages::getInstance();
@@ -97,7 +98,11 @@ class Upload
             'size'     => $size
         ];
         if (empty($fn) || empty($tmp_file)) {
-            $this->errors[] = self::UPLOAD_ERROR_UPLOAD;
+            if ($err_code === UPLOAD_ERR_INI_SIZE || $err_code === UPLOAD_ERR_FORM_SIZE) {
+                $this->errors[] = sprintf(self::UPLOAD_ERROR_FILE_SIZE, ini_get('upload_max_filesize'));
+            } else {
+                $this->errors[] = self::UPLOAD_ERROR_UPLOAD;
+            }
             return $this->getErrorResponse($response);
         }
         // sanitize filename
