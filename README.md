@@ -735,3 +735,8 @@ public static function array_combine_whatever(array $headers, array $data, strin
 #### `FileCMS\Common\File\Upload`
 * `upload()` now distinguishes an oversized upload from a generic invalid-file error. Previously, a file rejected by PHP itself (for exceeding `upload_max_filesize` or a form's `MAX_FILE_SIZE`) fell through to the same generic `UPLOAD_ERROR_UPLOAD` message as a missing/empty file, giving the user no indication of the actual cause.
 * Reads `$_FILES[$field]['error']` and, when it's `UPLOAD_ERR_INI_SIZE` or `UPLOAD_ERR_FORM_SIZE`, returns the existing `UPLOAD_ERROR_FILE_SIZE` message (reporting the server's configured `upload_max_filesize`) instead of `UPLOAD_ERROR_UPLOAD`.
+### tag: v0.3.23
+#### `FileCMS\Common\Contact\Email`
+* Added the ability to add an attachment when sending email
+* If this param is left blank, no attachment is verified or added 
+* If this param has a value, the validation routine checks to see if the file exists    
