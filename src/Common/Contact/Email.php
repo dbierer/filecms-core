@@ -46,19 +46,21 @@ class Email
     public static $error     = FALSE;
     public static $phpMailer = NULL;
     /**
-     * @param array $config  : from /src/config/config.php
-     * @param array $inputs  : filtered and validated $_POST data
-     *                       : $inputs['email'] === sender; $inputs['to'] === recipient
-     * @param string $body   : message body is passed back by reference
-     * @param bool $mx_check : if set TRUE, runs "checkdnsrr($email, 'MX')"
-     * @param bool $debug    : set TRUE to set debug mode: doesn't send mail
-     * @return string $msg   : any error or other messages
+     * @param array $config     : from /src/config/config.php
+     * @param array $inputs     : filtered and validated $_POST data
+     *                          : $inputs['email'] === sender; $inputs['to'] === recipient
+     * @param string $body      : message body is passed back by reference
+     * @param bool $mx_check    : if set TRUE, runs "checkdnsrr($email, 'MX')"
+     * @param bool $debug       : set TRUE to set debug mode: doesn't send mail
+     * @param string $attach_fn : attachment filename; empty == no attachment
+     * @return string $msg      : any error or other messages
      */
     public static function processPost( array $config,
                                         array $inputs,
                                         string &$body,
                                         bool $mx_check = FALSE,
-                                        bool $debug = FALSE)
+                                        bool $debug = FALSE,
+                                        string $attach_fn = '',)
     {
         $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
         // sanitize "from" email
@@ -82,9 +84,9 @@ class Email
             $bcc  = $inputs['bcc'] ?? $config['COMPANY_EMAIL']['bcc'] ?? '';
             $phpmailerConfig = $config['COMPANY_EMAIL']['phpmailer'];
             // validate email
-            if (static::validateEmail($to, $msg, $mx_check)) {
+            if (static::validateEmail($to, $msg, $mx_check, $attach_fn)) {
                 // send request
-                $msg = self::trustedSend($config, $to, $from, $subject, $body, $cc, $bcc, $debug);
+                $msg = self::trustedSend($config, $to, $from, $subject, $body, $cc, $bcc, $debug, $attach_fn);
             }
         }
         return $msg;
@@ -93,15 +95,16 @@ class Email
      * Sends email using PHPMailer
      * Trusts that all validation is done
      *
-     * @param array $config   : primary config file
-     * @param string $to      : recipient's email address
-     * @param string $from    : sender's email address
-     * @param string $subject : email subject line
-     * @param string $body    : email message
-     * @param mixed  $cc      : optional CC list
-     * @param mixed  $bcc     : optional BCC list
-     * @param bool   $debug   : set TRUE to set debug mode: doesn't send mail
-     * @return string $msg    : success/failure message
+     * @param array $config     : primary config file
+     * @param string $to        : recipient's email address
+     * @param string $from      : sender's email address
+     * @param string $subject   : email subject line
+     * @param string $body      : email message
+     * @param mixed  $cc        : optional CC list
+     * @param mixed  $bcc       : optional BCC list
+     * @param bool   $debug     : set TRUE to set debug mode  : doesn't send mail
+     * @param string $attach_fn : attachment filename; empty == no attachment
+     * @return string $msg      : success/failure message
      */
     public static function trustedSend( array $config,
                                         string $to,
@@ -110,7 +113,8 @@ class Email
                                         string $body,
                                         $cc = '',
                                         $bcc = '',
-                                        bool $debug = FALSE)
+                                        bool $debug = FALSE,
+                                        string $attach_fn = '')
     {
         $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
         $phpmailerConfig = $config['COMPANY_EMAIL']['phpmailer'];
@@ -136,6 +140,10 @@ class Email
             self::queueOutbound($bcc, 'bcc', $mail);
             $mail->Subject = $subject;
             $mail->Body    = $body;
+            // add attachment if exists
+            if (!empty($attach_fn)) {
+                $mail->addAttachment($attach_fn);
+            }
             if ($debug === TRUE) {
                 self::$phpMailer = $mail;
                 $msg = self::DEBUG_MSG;
@@ -189,14 +197,15 @@ class Email
     /**
      * Uses PHPMailer to validate email address
      *
-     * @param string $email  : email address to validate
-     * @param string $msg    : pass message by reference
-     * @param bool $mx_check : set TRUE to also perform an MX check (takes longer)
+     * @param string $email     : email address to validate
+     * @param string $msg       : pass message by reference
+     * @param bool $mx_check    : set TRUE to also perform an MX check (takes longer)
+     * @param string $attach_fn : checks to see if file exists; empty $attach_fn == skips this check
      * @return bool
      */
-    public static function validateEmail(string $email, string &$msg = '', bool $mx_check = FALSE)
+    public static function validateEmail(string $email, string &$msg = '', bool $mx_check = FALSE, string $attach_fn = '')
     {
-        $expected = 1;
+        $expected = 2;
         $actual   = 0;
         $actual  += (int) PHPMailer::validateAddress($email);
         if ($actual === 1 && $mx_check === TRUE) {
@@ -205,6 +214,7 @@ class Email
             $actual += (int) checkdnsrr($host, 'MX');
             $msg = static::ERR_MX;
         }
+        $actual += (empty($attach_fn)) ? 1 : (int) file_exists($attach_fn);
         $valid = ($actual === $expected);
         if (!$valid)
             error_log(__METHOD__ . ':' . static::DEFAULT_ERROR . ':' . $email);
