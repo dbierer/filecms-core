@@ -215,4 +215,69 @@ class BrowseTest extends TestCase
             if (strpos($name, '.png') !== FALSE) $expected++;
         $this->assertEquals($expected, $actual, 'Browse::handle() did not return expected number of image references when only PNG allowed');
     }
+    public function testHandleKeepsLegacyMarkupAndAddsDataUrl()
+    {
+        $browse = new Browse($this->config);
+        $browse->img_dir = $this->testImgDir;
+        $browse->allowed = ['png'];
+        $browse->path_exclude = [];
+        $browse->create_thumbs = FALSE;
+        $html = $browse->handle()->current();
+        $this->assertStringContainsString('onclick="returnFileUrl(\'img_1000\')"', $html, 'Browse::handle() no longer emits the legacy returnFileUrl() onclick');
+        $this->assertStringContainsString('<input type="hidden" id="img_1000" value="', $html, 'Browse::handle() no longer emits the legacy hidden input');
+        $this->assertMatchesRegularExpression('/data-url="[^"]+\.png"/', $html, 'Browse::handle() did not add data-url attribute');
+    }
+    public function testHandleEscapesFilenames()
+    {
+        $dir = sys_get_temp_dir() . '/filecms_browse_' . bin2hex(random_bytes(4));
+        mkdir($dir);
+        $bad = 'it\'s "bad" <b>&.png';
+        copy($this->getFirstPng(), $dir . '/' . $bad);
+        try {
+            $config = $this->config;
+            $config['UPLOADS']['img_dir'] = $dir;
+            $config['UPLOADS']['thumb_dir'] = $dir . '/thumb';
+            $config['UPLOADS']['create_thumbs'] = FALSE;
+            $config['UPLOADS']['allowed_ext'] = ['png'];
+            $config['UPLOADS']['path_exclude'] = [];
+            $browse = new Browse($config);
+            $html = $browse->handle()->current();
+            $this->assertStringNotContainsString($bad, $html, 'Browse::handle() did not escape filename');
+            $this->assertStringContainsString('it&apos;s &quot;bad&quot; &lt;b&gt;&amp;.png', $html, 'Browse::handle() did not escape filename as expected');
+        } finally {
+            unlink($dir . '/' . $bad);
+            rmdir($dir);
+        }
+    }
+    public function testGetPickerScriptSupportsTinymceAndCkeditor()
+    {
+        $browse = new Browse($this->config);
+        $script = $browse->getPickerScript();
+        $this->assertStringContainsString('function returnFileUrl(id)', $script, 'Picker script does not define returnFileUrl()');
+        $this->assertStringContainsString('opener.' . Browse::PICKER_CALLBACK . '(url', $script, 'Picker script does not call the TinyMCE picker callback');
+        $this->assertStringContainsString('CKEditorFuncNum', $script, 'Picker script lost the legacy CKEditor branch');
+        $this->assertStringNotContainsString('jquery', strtolower($script), 'Picker script should not depend on jQuery');
+    }
+    public function testRenderReturnsFullPageWithAllImagesAndScript()
+    {
+        $browse = new Browse($this->config);
+        $browse->img_dir = $this->testImgDir;
+        $browse->allowed = ['png'];
+        $browse->path_exclude = [];
+        $browse->create_thumbs = FALSE;
+        $html = $browse->render('Test <Title>');
+        $expected = 0;
+        foreach ($this->testImgFileList as $name)
+            if (strpos($name, '.png') !== FALSE) $expected++;
+        $this->assertStringStartsWith('<!DOCTYPE html>', $html, 'Browse::render() did not return a full page');
+        $this->assertStringContainsString('<title>Test &lt;Title&gt;</title>', $html, 'Browse::render() did not escape the title');
+        $this->assertEquals($expected, substr_count($html, 'returnFileUrl(\'img_'), 'Browse::render() did not include every image');
+        $this->assertStringContainsString('function returnFileUrl(id)', $html, 'Browse::render() did not include the picker script');
+    }
+    protected function getFirstPng() : string
+    {
+        foreach ($this->testImgFileList as $name)
+            if (strpos($name, '.png') !== FALSE) return BASE_DIR . '/' . trim($name);
+        $this->markTestSkipped('No PNG test images found');
+    }
 }

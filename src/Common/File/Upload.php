@@ -3,7 +3,7 @@ namespace FileCMS\Common\File;
 
 /*
  * Handles generic files uploads
- * Oriented towards graphics file uploads for CKEditor
+ * Oriented towards graphics file uploads from the Super editor (TinyMCE)
  *
  * Author: doug@unlikelysource.com
  * License: BSD

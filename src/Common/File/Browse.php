@@ -3,7 +3,9 @@ namespace FileCMS\Common\File;
 
 /*
  * Handles file browsing
- * Oriented towards graphics files for CKEditor
+ * Produces the "browse server images" pop-up used by the Super editor.
+ * Editor-neutral: works with TinyMCE (via file_picker_callback) and legacy CKEditor 4
+ * (via filebrowserImageBrowseUrl) -- see getPickerScript()
  *
  * Author: doug@unlikelysource.com
  * License: BSD
@@ -51,12 +53,16 @@ class Browse
     const DEFAULT_THUMB_URL = '/images/thumb';
     const DEFAULT_PATH_EXCLUDE = [];
     const THUMB_WIDTH       = 75;
+    // name of the window-level JS function the opener (edit.phtml) defines to receive the chosen URL
+    // TinyMCE: set inside file_picker_callback: window.filecmsPickerCallback = callback;
+    const PICKER_CALLBACK   = 'filecmsPickerCallback';
+    const DEFAULT_TITLE     = 'Browsing Files';
     const DISPLAY_STYLE     = 'background-color:#E5E5E5;'
-                            . 'margin=10px;'
+                            . 'margin:10px;'
                             . 'width:100px;'
                             . 'height:100px;'
                             . 'text-align:center;'
-                            . 'vertical-align:center;'
+                            . 'vertical-align:middle;'
                             . 'border:thin solid black;'
                             . 'display:block;'
                             . 'float:left;';
@@ -107,17 +113,97 @@ class Browse
             $size = $this->getStrSize(filesize($fn));
             $thumb_url = $this->getThumbUrlFromImageUrl($key, $fn);
             $id   = 'img_' . $count++;
+            // NOTE: markup (onclick="returnFileUrl('id')" + hidden input) is unchanged from earlier
+            //       versions so that sites with their own legacy browse.php script keep working
             $html = '<div style="' . self::DISPLAY_STYLE . '">'
-                  . '<a style="cursor:pointer;" name="' . $id . '" onclick="returnFileUrl(\'' . $id . '\')">'
-                  . '<img src="' . $thumb_url . '" alt="' . $key . '" style="' . self::DISP_IMG_STYLE . '"/>'
+                  . '<a style="cursor:pointer;" name="' . $id . '" data-url="' . $this->escape($key) . '"'
+                  . ' onclick="returnFileUrl(\'' . $id . '\')">'
+                  . '<img src="' . $this->escape($thumb_url) . '" alt="' . $this->escape($key) . '" style="' . self::DISP_IMG_STYLE . '"/>'
                   . '</a>'
                   . '<br />Size: ' . $size
-                  . '<input type="hidden" id="' . $id . '" value="' . $key . '" />'
+                  . '<input type="hidden" id="' . $id . '" value="' . $this->escape($key) . '" />'
                   . '</div>'
                   . '&nbsp;';
             yield $html;
             $list->next();
         }
+    }
+
+    /**
+     * Returns the <script> block for the browse pop-up
+     * Defines returnFileUrl(id), which hands the chosen image URL back to the editor in the opener window:
+     * - legacy CKEditor 4: if the pop-up URL contains "CKEditorFuncNum" (added by CKEditor itself)
+     * - TinyMCE: calls window.opener[PICKER_CALLBACK](url, meta); edit.phtml must set this in file_picker_callback:
+     *       file_picker_types: 'image',
+     *       file_picker_callback: function (callback, value, meta) {
+     *           window.filecmsPickerCallback = callback;
+     *           window.open('/super/browse', 'filecms_browse', 'width=800,height=500');
+     *       },
+     *
+     * @return string $script : HTML <script> block (no external dependencies)
+     */
+    public function getPickerScript() : string
+    {
+        $callback = self::PICKER_CALLBACK;
+        return <<<EOT
+<script>
+    // Returns the selected image URL to the editor that opened this window (TinyMCE or legacy CKEditor 4)
+    function returnFileUrl(id) {
+        var elem   = document.getElementById(id);
+        var url    = (elem) ? elem.value : '';
+        var opener = window.opener;
+        var match  = window.location.search.match(/[?&]CKEditorFuncNum=([^&]+)/i);
+        if (!url || !opener) {
+            window.close();
+            return;
+        }
+        if (match && opener.CKEDITOR && opener.CKEDITOR.tools) {
+            opener.CKEDITOR.tools.callFunction(decodeURIComponent(match[1]), url);
+        } else if (typeof opener.{$callback} === 'function') {
+            opener.{$callback}(url, { alt: '' });
+        } else {
+            alert('Unable to return the image to the editor. Copy this URL instead: ' + url);
+            return;
+        }
+        window.close();
+    }
+</script>
+EOT;
+    }
+
+    /**
+     * Returns the complete browse pop-up page: list of images + getPickerScript()
+     * Typical use in /src/browse.php (after authentication):
+     *     echo (new Browse($config))->render();
+     *
+     * @param string $title : page title
+     * @return string $html : full HTML page
+     */
+    public function render(string $title = self::DEFAULT_TITLE) : string
+    {
+        $html = '<!DOCTYPE html>' . PHP_EOL
+              . '<html lang="en">' . PHP_EOL
+              . '<head>' . PHP_EOL
+              . '    <meta charset="UTF-8">' . PHP_EOL
+              . '    <title>' . $this->escape($title) . '</title>' . PHP_EOL
+              . '</head>' . PHP_EOL
+              . '<body>' . PHP_EOL;
+        foreach ($this->handle() as $item) $html .= $item . PHP_EOL;
+        $html .= $this->getPickerScript() . PHP_EOL
+              . '</body>' . PHP_EOL
+              . '</html>' . PHP_EOL;
+        return $html;
+    }
+
+    /**
+     * Escapes a value for safe use inside an HTML attribute
+     *
+     * @param string $value
+     * @return string $escaped
+     */
+    protected function escape(string $value) : string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
     }
 
     /**

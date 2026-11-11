@@ -1,7 +1,7 @@
-# FileCMS (v0.3.24)
+# FileCMS (v0.3.25)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
-* Includes the CKEditor for full-featured editing.
+* Includes the TinyMCE editor for full-featured editing (self-hosted, GPL).
 * Includes an email contact form that uses PHPMailer.
 * Is able to import single files from a legacy website, or can do bulk import
 * Includes a complete set of transformation filters that can be applied during import, or afterwards
@@ -97,17 +97,49 @@ Run this from the root of your filecms-website-based project (the directory that
 vendor/unlikelysource/filecms-core/tinymce_upgrade_2026_07.sh
 ```
 This script does the following:
-1. Backs up `templates/super/edit.phtml`, `src/upload.php` and `src/config/config.php` (adds a `.bak` suffix)
+1. Backs up `templates/super/edit.phtml`, `src/upload.php`, `src/browse.php` and `src/config/config.php` (adds a `.bak` suffix)
 2. Adds `tinymce/tinymce` to `composer.json` and installs it
 3. Copies the TinyMCE assets into `public/tinymce`
 4. Downloads the updated `templates/super/edit.phtml` and `src/upload.php`
+5. Writes a new `src/browse.php` that uses `FileCMS\Common\File\Browse::render()` (requires `filecms-core` v0.3.25 or above)
 
-Two manual steps remain afterward:
+Three manual steps remain afterward:
 1. In `src/config/config.php`, rename the `'SUPER' => 'ckeditor'` key to `'tinymce'` (keep the existing `width` and `height` values):
 ```
 'tinymce' => [ 'width' => '100%', 'height' => 400 ],
 ```
-2. If you had customized `templates/super/edit.phtml` or `src/upload.php`, re-apply those customizations by comparing against the `.bak` files just created, then remove the `.bak` files once you're satisfied.
+2. If you had customized `templates/super/edit.phtml`, `src/upload.php` or `src/browse.php`, re-apply those customizations by comparing against the `.bak` files just created, then remove the `.bak` files once you're satisfied.
+3. Make sure the `tinymce.init()` call in `templates/super/edit.phtml` wires up the "browse server images" pop-up (TinyMCE has no equivalent of CKEditor's `filebrowserImageBrowseUrl`, so without this the image dialog has no browse button):
+```
+file_picker_types: 'image',
+file_picker_callback: function (callback, value, meta) {
+    window.filecmsPickerCallback = callback;   // must match FileCMS\Common\File\Browse::PICKER_CALLBACK
+    window.open('<?= $super_url ?>/browse', 'filecms_browse', 'width=800,height=500,resizable=yes,scrollbars=yes');
+},
+```
+
+### Image Browse Pop-up (`src/browse.php`)
+`FileCMS\Common\File\Browse` produces the pop-up that lists images under `$config['UPLOADS']['img_dir']`. Since v0.3.25 the JavaScript that hands the chosen image back to the editor lives in core, so `src/browse.php` only needs to authenticate and render:
+```
+<?php
+use FileCMS\Common\File\Browse;
+use FileCMS\Common\Security\Profile;
+use FileCMS\Common\Generic\Messages;
+if (!empty($OBJ)) {
+    $uri    = $OBJ->uri;
+    $config = $OBJ->config;
+}
+if (Profile::verify(FALSE, $config) === FALSE) {
+    Profile::logout();
+    Messages::getInstance()->addMessage('Unable to authenticate');
+    header('Location: /');
+    exit;
+}
+echo (new Browse($config))->render();
+```
+* `Browse::render()` returns the complete page; `Browse::handle()` (image list only) and `Browse::getPickerScript()` (the `<script>` block only) are available if you want your own page layout.
+* The picker script works with **both** TinyMCE (`window.opener.filecmsPickerCallback`) and legacy CKEditor 4 (detected from the `CKEditorFuncNum` query parameter CKEditor adds), so you can switch `browse.php` over before or after migrating the editor.
+* Older `browse.php` files that define their own `returnFileUrl(id)` keep working: the markup produced by `handle()` is unchanged apart from an added `data-url` attribute and HTML escaping.
 
 ## Website Installation
 ### Automated Installation
@@ -306,7 +338,7 @@ Example configuration for super user:
     ],
     // only files with these extensions can be edited
     'allowed_ext'  => ['html','htm'],
-    'ckeditor'     => [
+    'tinymce'      => [
         'width'  => '100%',
         'height' => 400,
     ],
@@ -332,7 +364,7 @@ Here's a breakdown of the `SUPER` config keys
 | login_fields | Field names drawn from your `login.phtml` login form |
 | validation   | You can specify as many of these as you want.  If the login attemp exceeds `attempts`, the SimpleHtml framework will automatically add a random field drawn from this list. |
 | allowed_ext  | Only files with an extension on this list can be edited. |
-| ckeditor     | Default width and height of the CKeditor screen |
+| tinymce      | Default width and height of the TinyMCE editor (height includes the toolbar and status bar) |
 | super_* | Settings pertaining to the location of the super admin user URL, templates and menu |
 
 ## Contact Form
@@ -756,4 +788,16 @@ public static function array_combine_whatever(array $headers, array $data, strin
 * `verify()` logging now reports the stored profile (`$_SESSION[Profile::PROFILE_KEY]`) instead of the wrong session key
 #### Tests
 * `EmailTest` -- 10 new cases for `trustedSendHtmlMail()` covering: debug mode not sending, multipart headers and boundary, subject encoding, HTML part and closing boundary, no attachment part when `$attach_fn` is empty, attachment part content, CC/BCC headers, a missing attachment, and real `mail()` success/failure (run in a child PHP process with `-d sendmail_path=...`, since `sendmail_path` can't be changed with `ini_set()`)
-
+### tag: v0.3.25
+#### `FileCMS\Common\File\Browse`
+* Fixes "browse server images" after the switch to TinyMCE: the pop-up's JavaScript previously lived in each site's `src/browse.php` and only knew how to return the chosen URL to CKEditor (`window.opener.CKEDITOR.tools.callFunction()`)
+* New `getPickerScript() : string` -- returns a dependency-free `<script>` defining `returnFileUrl(id)`; returns the chosen URL to TinyMCE via `window.opener[Browse::PICKER_CALLBACK]` (`filecmsPickerCallback`), or to legacy CKEditor 4 when the pop-up URL contains `CKEditorFuncNum`
+* New `render(string $title = 'Browsing Files') : string` -- returns the complete pop-up page (image list + picker script), so `src/browse.php` reduces to authentication plus `echo (new Browse($config))->render();`
+* New constants `PICKER_CALLBACK` and `DEFAULT_TITLE`
+* `handle()` now HTML-escapes image URLs used in `src`, `alt`, `value` and the new `data-url` attribute (filenames containing quotes or `<` previously broke the markup); the legacy `onclick="returnFileUrl('img_NNNN')"` + hidden `<input>` markup is unchanged, so existing `browse.php` scripts keep working
+* Fixed invalid CSS in `DISPLAY_STYLE` (`margin=10px` -> `margin:10px`, `vertical-align:center` -> `vertical-align:middle`)
+#### `tinymce_upgrade_2026_07.sh`
+* Also backs up `src/browse.php` and replaces it with a version that uses `Browse::render()`
+* Reminds you to add `file_picker_types` / `file_picker_callback` to `tinymce.init()`
+#### Tests
+* `BrowseTest` -- 4 new cases: legacy markup preserved + `data-url` added, filename escaping, picker script supports TinyMCE and CKEditor with no jQuery, `render()` returns a full page containing every image and the script
