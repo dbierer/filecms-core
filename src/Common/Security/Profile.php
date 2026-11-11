@@ -116,7 +116,7 @@ class Profile
     /**
      * Verifies profile against stored
      *
-     * @param bool $log : set TRUE if you want to log verifications
+     * @param bool $log : set TRUE if you want to log verification activity
      * @param array $config
      * @return bool TRUE if match | FALSE otherwise
      */
@@ -124,6 +124,7 @@ class Profile
     {
         $ok  = FALSE;
         $now = date('Y-m-d');
+        $info = [];
         if (!empty($_SESSION[self::PROFILE_KEY])) {
             $info[self::PROFILE_DEF_SRC] = $_SERVER[self::PROFILE_DEF_SRC] ?? $now;
             $keys = $config['SUPER']['profile'] ?? [];
@@ -142,10 +143,11 @@ class Profile
             }
             $ok = ($expected === $actual);
         }
-        if ($log)
+        if ($log) {
             error_log(__METHOD__
                       . ':ACTUAL INFO:' . var_export($info, TRUE)
-                      . ':STORED INFO:' . var_export(($_SESSION[self::PROFILE_DEF_SRC] ?? $now), TRUE));
+                      . ':STORED INFO:' . var_export(($_SESSION[self::PROFILE_KEY] ?? $now), TRUE));
+        }
         return $ok;
     }
 }

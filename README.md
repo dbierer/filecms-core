@@ -1,4 +1,4 @@
-# FileCMS (v0.3.21)
+# FileCMS (v0.3.24)
 Simple PHP framework that builds HTML files from HTML widgets.
 * Includes a class that can generate and validate CAPTCHAs (uses the GD extension).
 * Includes the CKEditor for full-featured editing.
@@ -738,5 +738,22 @@ public static function array_combine_whatever(array $headers, array $data, strin
 ### tag: v0.3.23
 #### `FileCMS\Common\Contact\Email`
 * Added the ability to add an attachment when sending email
-* If this param is left blank, no attachment is verified or added 
-* If this param has a value, the validation routine checks to see if the file exists    
+* If this param is left blank, no attachment is verified or added
+* If this param has a value, the validation routine checks to see if the file exists
+### tag: v0.3.24
+#### `FileCMS\Common\Contact\Email`
+* New `trustedSendHtmlMail()` -- sends an HTML email using PHP `mail()` directly (no PHPMailer), with an optional attachment. Like `trustedSend()`, it trusts that the addresses have already been validated.
+  * Signature: `trustedSendHtmlMail(array $config, string $to, string $from, string $subject, string $in_body, $cc = '', $bcc = '', bool $debug = FALSE, string $attach_fn = '', string $file_type = 'application/pdf')`
+  * Builds a `multipart/mixed` message: a base64-encoded `text/html; charset=UTF-8` part, plus a base64-encoded attachment part when `$attach_fn` is set. `$file_type` is the attachment's MIME type (default `application/pdf`). The subject is RFC 2047 encoded (`=?UTF-8?B?...?=`) so non-ASCII subjects survive.
+  * `$cc` / `$bcc` accept a string or an array of addresses
+  * If `$attach_fn` is set but the file doesn't exist or can't be read, nothing is sent: the error is logged and the error message is returned
+  * `$debug = TRUE` composes the message but does not send it; the result is stored in the new `Email::$htmlMail` static property (`['to', 'subject', 'body', 'headers']`) and `Email::DEBUG_MSG` is returned
+  * Returns `$config['COMPANY_EMAIL']['SUCCESS']` / `['ERROR']` (falling back to `DEFAULT_SUCCESS` / `DEFAULT_ERROR`), consistent with `trustedSend()`, and sets `Email::$error` to `FALSE` / `TRUE` accordingly
+* New constants `ERR_EMAIL` (`mail()` returned `FALSE`) and `ERR_ATTACH` (attachment missing/unreadable); both are written to the error log only
+* `trustedSend()` now resets `Email::$error` to `FALSE` at the start of each call, so an earlier failure no longer leaves it stuck at `TRUE`
+#### `FileCMS\Common\Security\Profile`
+* `verify()` now initializes `$info`, so calling it with `$log = TRUE` when no profile is stored no longer triggers an undefined-variable warning
+* `verify()` logging now reports the stored profile (`$_SESSION[Profile::PROFILE_KEY]`) instead of the wrong session key
+#### Tests
+* `EmailTest` -- 10 new cases for `trustedSendHtmlMail()` covering: debug mode not sending, multipart headers and boundary, subject encoding, HTML part and closing boundary, no attachment part when `$attach_fn` is empty, attachment part content, CC/BCC headers, a missing attachment, and real `mail()` success/failure (run in a child PHP process with `-d sendmail_path=...`, since `sendmail_path` can't be changed with `ini_set()`)
+

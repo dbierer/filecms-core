@@ -41,10 +41,14 @@ class Email
     const DEFAULT_ERROR   = 'ERROR: unable to send email';
     const ERR_MX          = 'ERROR: unable to determine email address';
     const DEBUG_MSG       = 'DEBUG mode enabled: mail not sent';
+    const ERR_EMAIL       = 'ERROR: mail() failed to send';
+    const ERR_ATTACH      = 'ERROR: attachment not found or not readable';
     // you can also directly set $pattern externally if you don't want to set it in config
     public static $pattern   = self::BODY_PATTERN;
     public static $error     = FALSE;
     public static $phpMailer = NULL;
+    // populated by trustedSendHtmlMail() in debug mode: ['to','subject','body','headers']
+    public static $htmlMail  = [];
     /**
      * @param array $config     : from /src/config/config.php
      * @param array $inputs     : filtered and validated $_POST data
@@ -94,6 +98,7 @@ class Email
     /**
      * Sends email using PHPMailer
      * Trusts that all validation is done
+     * Sets self::$error to TRUE if there was an error, FALSE otherwise
      *
      * @param array $config     : primary config file
      * @param string $to        : recipient's email address
@@ -116,6 +121,7 @@ class Email
                                         bool $debug = FALSE,
                                         string $attach_fn = '')
     {
+        self::$error = FALSE;
         $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
         $phpmailerConfig = $config['COMPANY_EMAIL']['phpmailer'];
         // send request
@@ -157,6 +163,117 @@ class Email
                 }
             }
         } catch (\Exception $e) {
+            self::$error = TRUE;
+            $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
+            error_log(__METHOD__ . ':' . $e->getMessage());
+        }
+        return $msg;
+    }
+    /**
+     * Sends HTML email using PHP mail() with optional attachment
+     * Does not use PHPMailer: builds the multipart/mixed MIME message directly
+     * Trusts that all validation is done (except that the attachment, if any, is checked for existence)
+     * Sets self::$error to TRUE if there was an error, FALSE otherwise
+     * In debug mode the message is composed but not sent, and is stored in self::$htmlMail
+     *
+     * @param array $config     : primary config file
+     * @param string $to        : recipient's email address
+     * @param string $from      : sender's email address
+     * @param string $subject   : email subject line
+     * @param string $in_body   : email message body (HTML)
+     * @param mixed  $cc        : optional CC list (string or array)
+     * @param mixed  $bcc       : optional BCC list (string or array)
+     * @param bool   $debug     : set TRUE to set debug mode  : doesn't send mail
+     * @param string $attach_fn : attachment filename; empty == no attachment
+     * @param string $file_type : MIME type of attachment (default: "application/pdf")
+     * @return string $msg      : success/failure message
+     */
+    public static function trustedSendHtmlMail( array $config,
+                                        string $to,
+                                        string $from,
+                                        string $subject,
+                                        string $in_body,
+                                        $cc = '',
+                                        $bcc = '',
+                                        bool $debug = FALSE,
+                                        string $attach_fn = '',
+                                        string $file_type = 'application/pdf')
+    {
+        $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
+        self::$error    = TRUE;
+        self::$htmlMail = [];
+        try {
+            $eol      = "\r\n";
+            $boundary = 'b_' . bin2hex(random_bytes(16));
+
+            // Read attachment first so we don't compose anything if it's missing
+            $attach_data = '';
+            if (!empty($attach_fn)) {
+                if (!is_file($attach_fn) || !is_readable($attach_fn)) {
+                    throw new \Exception(self::ERR_ATTACH . ':' . $attach_fn);
+                }
+                $contents = file_get_contents($attach_fn);
+                if ($contents === FALSE) {
+                    throw new \Exception(self::ERR_ATTACH . ':' . $attach_fn);
+                }
+                $attach_data = chunk_split(base64_encode($contents));
+            }
+
+            // Format mail headers
+            $headers = [
+                'MIME-Version: 1.0',
+                'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
+                'From: ' . $from,
+            ];
+            if (!empty($cc)) {
+                if (is_array($cc)) $cc = implode(',', $cc);
+                $headers[] = 'CC: ' . $cc;
+            }
+            if (!empty($bcc)) {
+                if (is_array($bcc)) $bcc = implode(',', $bcc);
+                $headers[] = 'BCC: ' . $bcc;
+            }
+            $headers[] = 'X-Mailer: PHP/' . phpversion();
+
+            // Body: HTML part
+            $body  = '--' . $boundary . $eol;
+            $body .= 'Content-Type: text/html; charset=UTF-8' . $eol;
+            $body .= 'Content-Transfer-Encoding: base64' . $eol . $eol;
+            $body .= chunk_split(base64_encode($in_body)) . $eol;
+
+            if (!empty($attach_fn)) {
+                // Body: attachment part
+                $file_name = basename($attach_fn);
+                $body .= '--' . $boundary . $eol;
+                $body .= 'Content-Type: ' . $file_type . '; name="' . $file_name . '"' . $eol;
+                $body .= 'Content-Transfer-Encoding: base64' . $eol;
+                $body .= 'Content-Disposition: attachment; filename="' . $file_name . '"' . $eol . $eol;
+                $body .= $attach_data . $eol;
+            }
+
+            // Closing boundary
+            $body .= '--' . $boundary . '--';
+
+            // Encode subject for non-ASCII safety
+            $encoded_subject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+            $headers_str     = implode($eol, $headers);
+
+            if ($debug === TRUE) {
+                self::$htmlMail = [
+                    'to'      => $to,
+                    'subject' => $encoded_subject,
+                    'body'    => $body,
+                    'headers' => $headers_str,
+                ];
+                self::$error = FALSE;
+                $msg = self::DEBUG_MSG;
+            } elseif (mail($to, $encoded_subject, $body, $headers_str)) {
+                self::$error = FALSE;
+                $msg = $config['COMPANY_EMAIL']['SUCCESS'] ?? self::DEFAULT_SUCCESS;
+            } else {
+                throw new \Exception(self::ERR_EMAIL);
+            }
+        } catch (\Throwable $e) {
             self::$error = TRUE;
             $msg = $config['COMPANY_EMAIL']['ERROR'] ?? self::DEFAULT_ERROR;
             error_log(__METHOD__ . ':' . $e->getMessage());
