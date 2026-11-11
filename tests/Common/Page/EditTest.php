@@ -2,6 +2,7 @@
 namespace FileCMSTest\Common\Page;
 
 use FileCMS\Common\Page\Edit;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\TestCase;
 class EditTest extends TestCase
 {
@@ -201,6 +202,7 @@ class EditTest extends TestCase
         $actual   = file_get_contents($this->testFileDir . '/testX.html');
         $this->assertEquals($expected, $actual, 'Edit::save() did overwrite original');
     }
+    #[RequiresPhpExtension('tidy')]
     public function testSaveFixesUsingTidyNoStrip()
     {
         $contents = file_get_contents($this->testFileDir . '/test1.html');
@@ -212,6 +214,7 @@ class EditTest extends TestCase
         $actual   = trim($contents[0]);
         $this->assertEquals($expected, $actual, 'Edit::save() did not fix using Tidy');
     }
+    #[RequiresPhpExtension('tidy')]
     public function testSaveFixesUsingTidyWithStrip()
     {
         $contents = file_get_contents($this->testFileDir . '/test1.html');
